@@ -7,46 +7,46 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class ColorPreComponent extends PreComponent {
-  private final TextColor color;
 
-  public ColorPreComponent(TextColor color, PreComponent[] children) {
-    this.color = color;
-    this.children = children;
-  }
+    private final @NotNull TextColor color;
 
-  @Override
-  public Component render(Pointered pointered, RenderScope scope) {
-    TextComponent.Builder builder = Component.text();
-    final Style style = computedStyle;
-    if (style != null && !style.isEmpty()) builder.style(style);
-    builder.color(color);
-    final PreComponent[] kids = children;
-    if (kids != null) {
-      for (final PreComponent child : kids) {
-        child.renderInto(pointered, builder, scope);
-      }
+    public ColorPreComponent(final @NotNull TextColor color, final PreComponent @NotNull [] children) {
+        this.color = color;
+        this.children = children;
     }
-    return builder.build();
-  }
 
-  @Override
-  public boolean isStatic() {
-    return childrenAreStatic();
-  }
-
-  @Nullable TextColor getColor() {
-    return color;
-  }
-
-  @Override
-  public PreComponent deepCopy() {
-    PreComponent[] copied = new PreComponent[children.length];
-    for (int i = 0; i < children.length; i++) {
-      copied[i] = children[i].deepCopy();
+    @Override
+    public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
+        final TextComponent.Builder builder = Component.text();
+        final @Nullable Style style = computedStyle;
+        if (style != null && !style.isEmpty()) builder.style(style);
+        builder.color(color);
+        final PreComponent @Nullable [] kids = children;
+        if (kids != null) {
+            for (final PreComponent child : kids) child.renderInto(pointered, builder, scope);
+        }
+        return builder.build();
     }
-    return new ColorPreComponent(color, copied).setStyle(computedStyle);
-  }
+
+    @Override
+    public boolean isStatic() {
+        return childrenAreStatic();
+    }
+
+    @Nullable TextColor getColor() {
+        return color;
+    }
+
+    @Override
+    public @NotNull PreComponent deepCopy() {
+        final PreComponent @Nullable [] kids = children;
+        if (kids == null) return new ColorPreComponent(color, new PreComponent[0]).setStyle(computedStyle);
+        final PreComponent @NotNull [] copied = new PreComponent[kids.length];
+        for (int i = 0; i < kids.length; i++) copied[i] = kids[i].deepCopy();
+        return new ColorPreComponent(color, copied).setStyle(computedStyle);
+    }
 }

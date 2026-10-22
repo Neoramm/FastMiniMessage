@@ -8,23 +8,23 @@ import io.github.neoramm.fastminimessage.model.Arguments;
 import io.github.neoramm.fastminimessage.model.PreComponent;
 import io.github.neoramm.fastminimessage.model.PreComponentTree;
 import net.kyori.adventure.text.format.Style;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public final class TranslatableResolver implements ComponentResolver {
     @Override
-    public PreComponent resolve(String name, Arguments args, PreComponent[] children, Style inheritedStyle, MiniMessageCompiler compiler) {
-        String key = args.get(0);
+    public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
+        final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
+        final @NotNull MiniMessageCompiler compiler) {
+        final String key = args.get(0);
         if (key == null) return new LiteralPreComponent("<" + name + ">", inheritedStyle);
-
-
-        PreComponentTree[] tArgs = new PreComponentTree[args.size() - 1];
-        for (int i = 1; i < args.size(); i++) {
-            tArgs[i - 1] = compiler.compile(args.get(i));
-        }
-        return new TranslatablePreComponent(key, tArgs, inheritedStyle);
+        final PreComponentTree @NotNull [] translatableArgs = new PreComponentTree[args.size() - 1];
+        for (int i = 1; i < args.size(); i++) translatableArgs[i - 1] = compiler.compile(args.get(i));
+        return new TranslatablePreComponent(key, translatableArgs, inheritedStyle);
     }
 
     @Override
-    public String[] names() {
+    public @NotNull String @NotNull [] names() {
         return new String[]{"lang", "translate", "tr"};
     }
 }

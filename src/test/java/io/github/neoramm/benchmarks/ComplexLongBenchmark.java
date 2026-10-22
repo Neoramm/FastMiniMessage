@@ -6,6 +6,7 @@ import io.github.neoramm.fastminimessage.model.PreComponentTree;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -27,10 +28,10 @@ import java.util.concurrent.TimeUnit;
 @Fork(5)
 public class ComplexLongBenchmark {
 
-    private static final Pointered NOBODY = new Pointered() {
+    private static final @NotNull Pointered NOBODY = new Pointered() {
     };
 
-    private static final String SAMPLE = """
+    private static final @NotNull String SAMPLE = """
             <bold>Lorem ipsum dolor sit amet</bold>, <red>consectetur adipiscing elit</red>, \
             <gradient:#ff0000:#0000ff>sed do eiusmod tempor incididunt ut labore et dolore magna aliqua</gradient>. \
             <italic>Ut enim ad minim veniam</italic>, <click:run_command:'/spawn'><hover:show_text:'<gray>hint <bold>x</bold></gray>'>quis nostrud exercitation</hover></click> \
@@ -51,9 +52,9 @@ public class ComplexLongBenchmark {
             <bold>unclosed bold span continues
             """.repeat(3);
 
-    private MiniMessage miniMessage;
-    private MiniMessageCompiler compiler;
-    private PreComponentTree tree;
+    private @NotNull MiniMessage miniMessage;
+    private @NotNull MiniMessageCompiler compiler;
+    private @NotNull PreComponentTree tree;
 
     @Setup
     public void setup() {
@@ -63,17 +64,17 @@ public class ComplexLongBenchmark {
     }
 
     @Benchmark
-    public Component miniMessageDeserialize() {
+    public @NotNull Component miniMessageDeserialize() {
         return miniMessage.deserialize(SAMPLE);
     }
 
     @Benchmark
-    public Component miniPreCompilerRender() {
+    public @NotNull Component miniPreCompilerRender() {
         return tree.render(NOBODY);
     }
 
     @Benchmark
-    public Component miniPreCompilerCompileAndRender() {
+    public @NotNull Component miniPreCompilerCompileAndRender() {
         return compiler.compile(SAMPLE).render(NOBODY);
     }
 }

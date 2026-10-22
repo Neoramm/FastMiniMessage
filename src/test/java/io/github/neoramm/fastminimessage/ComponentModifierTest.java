@@ -7,80 +7,90 @@ import net.kyori.adventure.pointer.Pointers;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-class ComponentModifierTest {
-  private static final Pointered NOBODY = new Pointered() {
-    public Pointers pointers() { return Pointers.empty(); }
-  };
-  private static final Pointered OTHER = new Pointered() {
-    public Pointers pointers() { return Pointers.empty(); }
-  };
+final class ComponentModifierTest {
 
-  private String plain(Component c) {
-    StringBuilder sb = new StringBuilder();
-    if (c instanceof TextComponent t) sb.append(t.content());
-    for (Component ch : c.children()) sb.append(plain(ch));
-    return sb.toString();
-  }
-
-  @Test
-  void staticModifierTransformsContent() {
-    MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
-    compiler.registerModifier("shout", ComponentModifiers.uppercase());
-    Component rendered = compiler.compile("<shout>hello</shout>").render(NOBODY);
-    assertEquals("HELLO", plain(rendered));
-  }
-
-  @Test
-  void staticModifierIsCached() {
-    MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
-    compiler.registerModifier("shout", ComponentModifiers.uppercase());
-    Component a = compiler.compile("<shout>hello</shout>").render(NOBODY);
-    Component b = compiler.compile("<shout>hello</shout>").render(NOBODY);
-    assertEquals(a, b);
-  }
-
-  @Test
-  void dynamicModifierDependsOnContext() {
-    ComponentModifier dyn = (rendered, ctx) -> {
-      String suffix = (ctx == OTHER) ? "!" : ".";
-      return Component.text(plain(rendered) + suffix, rendered.style());
+    private static final @NotNull Pointered NOBODY = new Pointered() {
+        @Override
+        public @NotNull Pointers pointers() {
+            return Pointers.empty();
+        }
     };
-    MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
-    compiler.registerModifier("dyn", dyn);
-    Component a = compiler.compile("<dyn>hi</dyn>").render(NOBODY);
-    Component b = compiler.compile("<dyn>hi</dyn>").render(OTHER);
-    assertEquals("hi.", plain(a));
-    assertEquals("hi!", plain(b));
-  }
 
-  @Test
-  void modifierInsideGradientDoesNotThrow() {
-    MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
-    compiler.registerModifier("shout", ComponentModifiers.uppercase());
-    Component rendered = compiler.compile("<gradient:red:blue><shout>ab</shout></gradient>").render(NOBODY);
-    assertTrue(rendered != null);
-    assertTrue(!plain(rendered).isEmpty());
-  }
+    private static final @NotNull Pointered OTHER = new Pointered() {
+        @Override
+        public @NotNull Pointers pointers() {
+            return Pointers.empty();
+        }
+    };
 
-  @Test
-  void modifierInheritsStyle() {
-    MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
-    compiler.registerModifier("shout", ComponentModifiers.uppercase());
-    Component rendered = compiler.compile("<red><shout>x</shout></red>").render(NOBODY);
-    assertEquals(NamedTextColor.RED, rendered.style().color());
-  }
+    private static @NotNull String plain(final @NotNull Component component) {
+        final StringBuilder text = new StringBuilder();
+        if (component instanceof TextComponent textComponent) text.append(textComponent.content());
+        for (final Component child : component.children()) text.append(plain(child));
+        return text.toString();
+    }
 
-  @Test
-  void staticColorModifier() {
-    MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
-    compiler.registerModifier("blue", ComponentModifiers.staticColor(NamedTextColor.BLUE));
-    Component rendered = compiler.compile("<blue>hi</blue>").render(NOBODY);
-    assertEquals(NamedTextColor.BLUE, rendered.style().color());
-  }
+    @Test
+    void staticModifierTransformsContent() {
+        final MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
+        compiler.registerModifier("shout", ComponentModifiers.uppercase());
+        final Component rendered = compiler.compile("<shout>hello</shout>").render(NOBODY);
+        assertEquals("HELLO", plain(rendered));
+    }
+
+    @Test
+    void staticModifierIsCached() {
+        final MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
+        compiler.registerModifier("shout", ComponentModifiers.uppercase());
+        final Component first = compiler.compile("<shout>hello</shout>").render(NOBODY);
+        final Component second = compiler.compile("<shout>hello</shout>").render(NOBODY);
+        assertEquals(first, second);
+    }
+
+    @Test
+    void dynamicModifierDependsOnContext() {
+        final ComponentModifier dynamic = (final @NotNull Component rendered, final @Nullable Pointered context) -> {
+            final String suffix = context == OTHER ? "!" : ".";
+            return Component.text(plain(rendered) + suffix, rendered.style());
+        };
+        final MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
+        compiler.registerModifier("dyn", dynamic);
+        final Component first = compiler.compile("<dyn>hi</dyn>").render(NOBODY);
+        final Component second = compiler.compile("<dyn>hi</dyn>").render(OTHER);
+        assertEquals("hi.", plain(first));
+        assertEquals("hi!", plain(second));
+    }
+
+    @Test
+    void modifierInsideGradientDoesNotThrow() {
+        final MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
+        compiler.registerModifier("shout", ComponentModifiers.uppercase());
+        final Component rendered = compiler.compile("<gradient:red:blue><shout>ab</shout></gradient>").render(NOBODY);
+        assertNotNull(rendered);
+        assertFalse(plain(rendered).isEmpty());
+    }
+
+    @Test
+    void modifierInheritsStyle() {
+        final MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
+        compiler.registerModifier("shout", ComponentModifiers.uppercase());
+        final Component rendered = compiler.compile("<red><shout>x</shout></red>").render(NOBODY);
+        assertEquals(NamedTextColor.RED, rendered.style().color());
+    }
+
+    @Test
+    void staticColorModifier() {
+        final MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
+        compiler.registerModifier("blue", ComponentModifiers.staticColor(NamedTextColor.BLUE));
+        final Component rendered = compiler.compile("<blue>hi</blue>").render(NOBODY);
+        assertEquals(NamedTextColor.BLUE, rendered.style().color());
+    }
 }

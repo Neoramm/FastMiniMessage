@@ -5,13 +5,12 @@ import io.github.neoramm.fastminimessage.ResolverRegistry;
 import io.github.neoramm.fastminimessage.api.ComponentResolver;
 import io.github.neoramm.fastminimessage.model.Arguments;
 import io.github.neoramm.fastminimessage.model.PreComponent;
-import io.github.neoramm.fastminimessage.model.RenderScope;
 import io.github.neoramm.fastminimessage.model.PreComponentTree;
+import io.github.neoramm.fastminimessage.model.RenderScope;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -48,7 +47,7 @@ import java.util.concurrent.TimeUnit;
 @Fork(1)
 public class MiniMessageRenderBenchmark {
 
-    private static final @Nullable Pointered NOBODY = new Pointered() {
+    private static final @NotNull Pointered NOBODY = new Pointered() {
     };
 
     private static final @NotNull String SAMPLE = """
@@ -105,10 +104,10 @@ public class MiniMessageRenderBenchmark {
             <hover:show_text:'<gray>A gray hint with <bold>nested style</bold></gray>'>hover with <dyn/> inside</hover>\
             """.repeat(2);
 
-    private MiniMessage miniMessage;
-    private MiniMessageCompiler compiler;
-    private PreComponentTree tree;
-    private PreComponentTree dynamicTree;
+    private @NotNull MiniMessage miniMessage;
+    private @NotNull MiniMessageCompiler compiler;
+    private @NotNull PreComponentTree tree;
+    private @NotNull PreComponentTree dynamicTree;
 
     @Setup
     public void setup() {
@@ -123,13 +122,14 @@ public class MiniMessageRenderBenchmark {
     private static final class DynamicResolver implements ComponentResolver {
 
         @Override
-        public PreComponent resolve(final String name, final Arguments args, final PreComponent[] children,
-                                    final Style inheritedStyle, final MiniMessageCompiler compiler) {
+        public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
+            final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
+            final @NotNull MiniMessageCompiler compiler) {
             return new DynamicPreComponent();
         }
 
         @Override
-        public String[] names() {
+        public @NotNull String @NotNull [] names() {
             return new String[]{"dyn"};
         }
 
@@ -140,15 +140,16 @@ public class MiniMessageRenderBenchmark {
     }
 
     private static final class DynamicPreComponent extends PreComponent {
-        private static final Component VALUE = Component.text("dynamic");
+
+        private static final @NotNull Component VALUE = Component.text("dynamic");
 
         @Override
-        public Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
+        public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
             return VALUE;
         }
 
         @Override
-        public PreComponent deepCopy() {
+        public @NotNull PreComponent deepCopy() {
             return new DynamicPreComponent();
         }
     }

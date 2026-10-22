@@ -6,40 +6,44 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Example (non-registered) component modifiers for documentation purposes.
  */
 public final class ComponentModifiers {
-  private ComponentModifiers() {
-  }
+    private ComponentModifiers() {
+    }
 
-  private static String plain(Component c) {
-    StringBuilder sb = new StringBuilder();
-    if (c instanceof TextComponent t) sb.append(t.content());
-    for (Component ch : c.children()) sb.append(plain(ch));
-    return sb.toString();
-  }
+    private static @NotNull String plain(final @NotNull Component component) {
+        final StringBuilder builder = new StringBuilder();
+        if (component instanceof final TextComponent text) builder.append(text.content());
+        for (final Component child : component.children()) builder.append(plain(child));
+        return builder.toString();
+    }
 
-  public static ComponentModifier uppercase() {
-    return (rendered, context) -> Component.text(plain(rendered).toUpperCase(), rendered.style());
-  }
+    public static @NotNull ComponentModifier uppercase() {
+        return (final @NotNull Component rendered, final @Nullable Pointered context) ->
+            Component.text(plain(rendered).toUpperCase(), rendered.style());
+    }
 
-  public static ComponentModifier staticColor(final NamedTextColor color) {
-    return new ComponentModifier() {
-      @Override
-      public Component modify(Component rendered, Pointered context) {
-        return rendered.colorIfAbsent(color);
-      }
+    public static @NotNull ComponentModifier staticColor(final @NotNull NamedTextColor color) {
+        return new ComponentModifier() {
+            @Override
+            public @NotNull Component modify(final @NotNull Component rendered, final @Nullable Pointered context) {
+                return rendered.colorIfAbsent(color);
+            }
 
-      @Override
-      public boolean isStatic() {
-        return true;
-      }
-    };
-  }
+            @Override
+            public boolean isStatic() {
+                return true;
+            }
+        };
+    }
 
-  public static ComponentModifier boldAll() {
-    return (rendered, context) -> rendered.style(s -> s.decoration(TextDecoration.BOLD, TextDecoration.State.TRUE));
-  }
+    public static @NotNull ComponentModifier boldAll() {
+        return (final @NotNull Component rendered, final @Nullable Pointered context) ->
+            rendered.style(s -> s.decoration(TextDecoration.BOLD, TextDecoration.State.TRUE));
+    }
 }

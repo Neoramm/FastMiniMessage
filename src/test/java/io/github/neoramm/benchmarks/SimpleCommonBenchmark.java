@@ -6,6 +6,7 @@ import io.github.neoramm.fastminimessage.model.PreComponentTree;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.jetbrains.annotations.NotNull;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -27,14 +28,15 @@ import java.util.concurrent.TimeUnit;
 @Fork(3)
 public class SimpleCommonBenchmark {
 
-    private static final Pointered NOBODY = new Pointered() {
+    private static final @NotNull Pointered NOBODY = new Pointered() {
     };
 
-    private static final String SAMPLE = "<green>[Server]</green> <white>Welcome!</white> <yellow>Type <bold>/help</bold> for commands.</yellow>";
+    private static final @NotNull String SAMPLE = "<green>[Server]</green> <white>Welcome!</white> "
+        + "<yellow>Type <bold>/help</bold> for commands.</yellow>";
 
-    private MiniMessage miniMessage;
-    private MiniMessageCompiler compiler;
-    private PreComponentTree tree;
+    private @NotNull MiniMessage miniMessage;
+    private @NotNull MiniMessageCompiler compiler;
+    private @NotNull PreComponentTree tree;
 
     @Setup
     public void setup() {
@@ -44,17 +46,17 @@ public class SimpleCommonBenchmark {
     }
 
     @Benchmark
-    public Component miniMessageDeserialize() {
+    public @NotNull Component miniMessageDeserialize() {
         return miniMessage.deserialize(SAMPLE);
     }
 
     @Benchmark
-    public Component miniPreCompilerRender() {
+    public @NotNull Component miniPreCompilerRender() {
         return tree.render(NOBODY);
     }
 
     @Benchmark
-    public Component miniPreCompilerCompileAndRender() {
+    public @NotNull Component miniPreCompilerCompileAndRender() {
         return compiler.compile(SAMPLE).render(NOBODY);
     }
 }

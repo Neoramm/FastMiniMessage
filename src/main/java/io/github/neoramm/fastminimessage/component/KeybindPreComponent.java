@@ -2,20 +2,22 @@ package io.github.neoramm.fastminimessage.component;
 
 import io.github.neoramm.fastminimessage.model.PreComponent;
 import io.github.neoramm.fastminimessage.model.RenderScope;
+import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.Style;
-import net.kyori.adventure.pointer.Pointered;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public final class KeybindPreComponent extends PreComponent {
-    private final String keybind;
+    private final @NotNull String keybind;
 
-    public KeybindPreComponent(String keybind, Style style) {
+    public KeybindPreComponent(final @NotNull String keybind, final @Nullable Style style) {
         this.keybind = keybind;
         this.computedStyle = style;
     }
 
     @Override
-    public Component render(Pointered pointered, RenderScope scope) {
+    public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
         return Component.keybind(keybind, computedStyle);
     }
 
@@ -25,7 +27,7 @@ public final class KeybindPreComponent extends PreComponent {
     }
 
     @Override
-    public PreComponent deepCopy() {
+    public @NotNull PreComponent deepCopy() {
         return new KeybindPreComponent(keybind, computedStyle);
     }
 }

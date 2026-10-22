@@ -8,18 +8,23 @@ import io.github.neoramm.fastminimessage.model.PreComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public final class GradientResolver implements ComponentResolver {
     @Override
-    public PreComponent resolve(String name, Arguments args, PreComponent[] children, Style inheritedStyle, MiniMessageCompiler compiler) {
+    public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
+        final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
+        final @NotNull MiniMessageCompiler compiler) {
         if (args.isEmpty()) {
-            return new GradientPreComponent(new TextColor[]{NamedTextColor.WHITE, NamedTextColor.BLACK}, 0.0f, children);
+            return new GradientPreComponent(
+                new TextColor[]{NamedTextColor.WHITE, NamedTextColor.BLACK}, 0.0f, children);
         }
         int count = args.size();
         float phase = 0.0f;
 
         if (count > 2) {
-            String last = args.get(count - 1);
+            final String last = args.get(count - 1);
             TextColor lastColor = TextColor.fromHexString(last);
             if (lastColor == null) lastColor = NamedTextColor.NAMES.value(last);
             if (lastColor == null) {
@@ -27,26 +32,24 @@ public final class GradientResolver implements ComponentResolver {
                     phase = Float.parseFloat(last);
                     if (phase < -1.0f || phase > 1.0f) phase = 0.0f;
                     count--;
-                } catch (NumberFormatException ignored) {
+                } catch (final NumberFormatException ignored) {
                     phase = 0.0f;
                 }
             }
         }
-        TextColor[] colors = new TextColor[count];
+        final TextColor @NotNull [] colors = new TextColor[count];
         for (int i = 0; i < count; i++) {
-            String raw = args.get(i);
+            final String raw = args.get(i);
             TextColor color = TextColor.fromHexString(raw);
             if (color == null) color = NamedTextColor.NAMES.value(raw);
             colors[i] = color != null ? color : NamedTextColor.WHITE;
         }
-        if (colors.length < 2) {
-            throw new IllegalArgumentException("Invalid gradient, not enough colors.");
-        }
+        if (colors.length < 2) throw new IllegalArgumentException("Invalid gradient, not enough colors.");
         return new GradientPreComponent(colors, phase, children);
     }
 
     @Override
-    public String[] names() {
+    public @NotNull String @NotNull [] names() {
         return new String[]{"gradient"};
     }
 }

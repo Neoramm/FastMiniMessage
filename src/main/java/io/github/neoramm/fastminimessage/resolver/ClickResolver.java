@@ -9,24 +9,26 @@ import io.github.neoramm.fastminimessage.model.Arguments;
 import io.github.neoramm.fastminimessage.model.PreComponent;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.Style;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
 
 public final class ClickResolver implements ComponentResolver {
     @Override
-    public PreComponent resolve(String name, Arguments args, PreComponent[] children, Style inheritedStyle, MiniMessageCompiler compiler) {
-        String actionName = args.get(0, "open_url");
-        String rawValue = args.get(1, "");
-        ClickEvent event = resolveClickEvent(actionName, rawValue);
-        if (children.length == 0) {
-            return new LiteralPreComponent("", inheritedStyle);
-        }
+    public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
+        final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
+        final @NotNull MiniMessageCompiler compiler) {
+        final String actionName = args.get(0, "open_url");
+        final String rawValue = args.get(1, "");
+        final ClickEvent event = resolveClickEvent(actionName, rawValue);
+        if (children.length == 0) return new LiteralPreComponent("", inheritedStyle);
         final Style own = Style.style().clickEvent(event).build();
         if (StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own)) return children[0];
         return new ClickPreComponent(event, children);
     }
 
-    private ClickEvent resolveClickEvent(String actionName, String rawValue) {
+    private @NotNull ClickEvent resolveClickEvent(final @NotNull String actionName, final @NotNull String rawValue) {
         return switch (actionName.toLowerCase(Locale.ROOT)) {
             case "run_command" -> ClickEvent.runCommand(rawValue);
             case "suggest_command" -> ClickEvent.suggestCommand(rawValue);
@@ -37,14 +39,14 @@ public final class ClickResolver implements ComponentResolver {
         };
     }
 
-    private int parseInt(String raw) {
+    private int parseInt(final @Nullable String raw) {
+        if (raw == null) return 0;
         try {
             return Integer.parseInt(raw);
-        } catch (NumberFormatException e) {
+        } catch (final NumberFormatException e) {
             return 0;
         }
     }
-
 
     @Override
     public boolean isSelfClosing() {
@@ -52,7 +54,7 @@ public final class ClickResolver implements ComponentResolver {
     }
 
     @Override
-    public String[] names() {
+    public @NotNull String @NotNull [] names() {
         return new String[]{"click"};
     }
 }
