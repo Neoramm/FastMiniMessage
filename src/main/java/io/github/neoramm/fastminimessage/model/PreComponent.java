@@ -5,6 +5,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.Style;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Base type of every node in a precompiled component tree.
@@ -16,11 +17,11 @@ public abstract class PreComponent {
   protected PreComponent[] children;
   protected Style computedStyle = Style.empty();
 
-  public Component render(final @NotNull Pointered pointered) {
+  public Component render(final @Nullable Pointered pointered) {
     return render(pointered, RenderScope.EMPTY);
   }
 
-  public abstract Component render(final @NotNull Pointered pointered, final @NotNull RenderScope scope);
+  public abstract Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope);
 
   /**
    * Appends this component's rendered form to an existing builder.
@@ -28,11 +29,11 @@ public abstract class PreComponent {
    * <p>Containers whose style is already on the builder can forward the call to their children,
    * avoiding one intermediate component per nesting level.</p>
    */
-  public void renderInto(final @NotNull Pointered pointered, final @NotNull TextComponent.Builder builder) {
+  public void renderInto(final @Nullable Pointered pointered, final @NotNull TextComponent.Builder builder) {
     renderInto(pointered, builder, RenderScope.EMPTY);
   }
 
-  public void renderInto(final @NotNull Pointered pointered, final @NotNull TextComponent.Builder builder, final @NotNull RenderScope scope) {
+  public void renderInto(final @Nullable Pointered pointered, final @NotNull TextComponent.Builder builder, final @NotNull RenderScope scope) {
     builder.append(render(pointered, scope));
   }
 

@@ -15,6 +15,7 @@ import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -151,7 +152,7 @@ class MiniMessageCompilerRenderTest {
     private static final Component VALUE = Component.text("Z");
 
     @Override
-    public Component render(final @NotNull Pointered pointered, final @NotNull RenderScope scope) {
+    public Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
       return VALUE;
     }
 

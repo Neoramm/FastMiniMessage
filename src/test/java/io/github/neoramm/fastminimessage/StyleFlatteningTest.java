@@ -269,7 +269,7 @@ class StyleFlatteningTest {
     private static final Component VALUE = Component.text("Z");
 
     @Override
-    public Component render(final @NotNull Pointered pointered, final @NotNull RenderScope scope) {
+    public Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
       return VALUE;
     }
 

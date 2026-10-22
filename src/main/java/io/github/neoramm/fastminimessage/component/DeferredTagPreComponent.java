@@ -41,7 +41,7 @@ public final class DeferredTagPreComponent extends PreComponent {
   }
 
   @Override
-  public @NotNull Component render(final @NotNull Pointered pointered, final @NotNull RenderScope scope) {
+  public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
     final String substituted = substitute(rawArgsTemplate, scope, pointered);
     if (lastResolved == null || lastArgs == null || !lastArgs.equals(substituted) || scope.resolveModifier(tagName) != null) {
       lastArgs = substituted;
@@ -68,7 +68,7 @@ public final class DeferredTagPreComponent extends PreComponent {
   }
 
   private static @NotNull String substitute(
-    final @NotNull String template, final @NotNull RenderScope scope, final @NotNull Pointered pointered
+    final @NotNull String template, final @NotNull RenderScope scope, final @Nullable Pointered pointered
   ) {
     if (scope.isEmpty()) return template;
     final StringBuilder out = new StringBuilder(template.length());

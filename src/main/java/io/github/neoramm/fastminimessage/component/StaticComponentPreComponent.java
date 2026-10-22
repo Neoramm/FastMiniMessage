@@ -7,6 +7,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.Style;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Wraps an immutable Adventure component whose rendering applies the inherited style.
@@ -19,14 +20,14 @@ public final class StaticComponentPreComponent extends PreComponent {
   }
 
   @Override
-  public @NotNull Component render(final @NotNull Pointered pointered, final @NotNull RenderScope scope) {
+  public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
     final Style style = computedStyle != null ? computedStyle : Style.empty();
     if (style.isEmpty()) return component;
     return component.style(style.merge(component.style()));
   }
 
   @Override
-  public void renderInto(final @NotNull Pointered pointered, final @NotNull TextComponent.Builder builder) {
+  public void renderInto(final @Nullable Pointered pointered, final @NotNull TextComponent.Builder builder) {
     builder.append(render(pointered));
   }
 

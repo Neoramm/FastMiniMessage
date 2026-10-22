@@ -23,6 +23,15 @@ public final class PreComponentTree {
   }
 
   /**
+   * Renders the tree for the given context without {@link Pointered}.
+   *
+   * @return the rendered component
+   */
+  public Component render() {
+    return root.render(null, RenderScope.EMPTY);
+  }
+
+  /**
    * Renders the tree for the given context.
    *
    * @param pointered the context (usually the viewer)

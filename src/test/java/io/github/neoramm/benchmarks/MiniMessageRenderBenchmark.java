@@ -13,6 +13,7 @@ import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -47,7 +48,7 @@ import java.util.concurrent.TimeUnit;
 @Fork(1)
 public class MiniMessageRenderBenchmark {
 
-    private static final @NotNull Pointered NOBODY = new Pointered() {
+    private static final @Nullable Pointered NOBODY = new Pointered() {
     };
 
     private static final @NotNull String SAMPLE = """
@@ -142,7 +143,7 @@ public class MiniMessageRenderBenchmark {
         private static final Component VALUE = Component.text("dynamic");
 
         @Override
-        public Component render(final @NotNull Pointered pointered, final @NotNull RenderScope scope) {
+        public Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
             return VALUE;
         }
 

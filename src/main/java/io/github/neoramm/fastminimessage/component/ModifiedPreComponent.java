@@ -20,7 +20,7 @@ public final class ModifiedPreComponent extends PreComponent {
   }
 
   @Override
-  public @NotNull Component render(final @NotNull Pointered pointered, final @NotNull RenderScope scope) {
+  public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
     final boolean cacheable = isStatic() && scope.isEmpty();
     if (cacheable) {
       final Component cached = this.cached;
@@ -41,7 +41,7 @@ public final class ModifiedPreComponent extends PreComponent {
   }
 
   @Override
-  public void renderInto(final @NotNull Pointered pointered, final @NotNull TextComponent.Builder builder) {
+  public void renderInto(final @Nullable Pointered pointered, final @NotNull TextComponent.Builder builder) {
     builder.append(render(pointered));
   }
 

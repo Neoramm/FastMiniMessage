@@ -17,7 +17,7 @@ public final class InlinePreComponent extends PreComponent {
   }
 
   @Override
-  public @NotNull Component render(final @NotNull Pointered pointered, final @NotNull RenderScope scope) {
+  public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
     final Style style = computedStyle;
     if (style == null || style.isEmpty()) return component;
     Component cached = styled;

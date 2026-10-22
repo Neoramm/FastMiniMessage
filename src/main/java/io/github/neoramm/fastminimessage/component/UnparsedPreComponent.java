@@ -24,7 +24,7 @@ public final class UnparsedPreComponent extends PreComponent {
   }
 
   @Override
-  public @NotNull Component render(final @NotNull Pointered pointered, final @NotNull RenderScope scope) {
+  public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
     final Style style = computedStyle;
     final PreComponent parsed = parsedComponent;
     if (parsed != null) {
