@@ -26,9 +26,6 @@ class DiverseCasesTest {
     List<String> e = ComponentComparison.expression(ref);
     List<String> a = ComponentComparison.expression(rendered);
     if (!e.equals(a)) {
-      System.out.println("MISMATCH: " + input);
-      System.out.println("  expected: " + e);
-      System.out.println("  actual:   " + a);
     }
     assertEquals(e, a, input);
   }

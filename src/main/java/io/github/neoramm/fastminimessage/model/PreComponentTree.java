@@ -7,6 +7,7 @@ import io.github.neoramm.fastminimessage.resolver.ModifierResolver;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.UnaryOperator;
@@ -37,20 +38,20 @@ public final class PreComponentTree {
    * @param pointered the context (usually the viewer)
    * @return the rendered component
    */
-  public Component render(Pointered pointered) {
+  public Component render(@Nullable Pointered pointered) {
     return root.render(pointered, RenderScope.EMPTY);
   }
 
-  public Component render(Pointered pointered, RenderScope scope) {
+  public Component render(@Nullable Pointered pointered, RenderScope scope) {
     if (scope == null) scope = RenderScope.EMPTY;
     return root.render(pointered, scope);
   }
 
-  public Component render(Pointered pointered, ModifierResolver... modifiers) {
+  public Component render(@Nullable Pointered pointered, ModifierResolver... modifiers) {
     return root.render(pointered, RenderScope.of(modifiers));
   }
 
-  public Component render(Pointered pointered, RuntimeResolver... resolvers) {
+  public Component render(@Nullable Pointered pointered, RuntimeResolver... resolvers) {
     List<Placeholder> placeholders = new java.util.ArrayList<>();
     List<ModifierResolver> modifiers = new java.util.ArrayList<>();
     if (resolvers != null) {

@@ -50,9 +50,6 @@ class ComplexLongInputTest {
       int i = 0;
       int size = Math.min(e.size(), a.size());
       while (i < size && e.get(i).equals(a.get(i))) i++;
-      System.out.println("FIRST DIFF at " + i + " of " + e.size() + " vs " + a.size());
-      System.out.println("  expected: " + (i < e.size() ? e.get(i) : "<end>"));
-      System.out.println("  actual:   " + (i < a.size() ? a.get(i) : "<end>"));
     }
     assertEquals(e, a, "complex long input expression differs");
   }

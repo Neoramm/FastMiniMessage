@@ -4,6 +4,7 @@ import io.github.neoramm.fastminimessage.MiniMessageCompiler;
 import io.github.neoramm.fastminimessage.api.ComponentModifier;
 import io.github.neoramm.fastminimessage.api.ComponentResolver;
 import io.github.neoramm.fastminimessage.component.ModifiedPreComponent;
+import io.github.neoramm.fastminimessage.api.ComponentModifier;
 import io.github.neoramm.fastminimessage.model.Arguments;
 import io.github.neoramm.fastminimessage.model.RuntimeResolver;
 import io.github.neoramm.fastminimessage.model.PreComponent;
@@ -23,7 +24,7 @@ public final class ModifierResolver implements ComponentResolver, RuntimeResolve
     return new ModifiedPreComponent(modifier, children);
   }
 
-  public io.github.neoramm.fastminimessage.api.ComponentModifier modifier() {
+  public ComponentModifier modifier() {
     return modifier;
   }
 
