@@ -4,6 +4,7 @@ import io.github.neoramm.fastminimessage.MiniMessageCompiler;
 import io.github.neoramm.fastminimessage.StyleInheritance;
 import io.github.neoramm.fastminimessage.api.ComponentResolver;
 import io.github.neoramm.fastminimessage.component.GroupPreComponent;
+import io.github.neoramm.fastminimessage.component.LiteralPreComponent;
 import io.github.neoramm.fastminimessage.model.Arguments;
 import io.github.neoramm.fastminimessage.model.PreComponent;
 import net.kyori.adventure.key.InvalidKeyException;
@@ -31,7 +32,9 @@ public final class FontResolver implements ComponentResolver {
             throw new IllegalArgumentException(ex.getMessage(), ex);
         }
         final Style own = Style.style().font(font).build();
-        if (StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own)) return children[0];
+        final @Nullable LiteralPreComponent merged =
+            StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);
+        if (merged != null) return merged;
         return new GroupPreComponent(children).setStyle(own);
     }
 

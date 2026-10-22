@@ -4,6 +4,7 @@ import io.github.neoramm.fastminimessage.MiniMessageCompiler;
 import io.github.neoramm.fastminimessage.StyleInheritance;
 import io.github.neoramm.fastminimessage.api.ComponentResolver;
 import io.github.neoramm.fastminimessage.component.InsertingPreComponent;
+import io.github.neoramm.fastminimessage.component.LiteralPreComponent;
 import io.github.neoramm.fastminimessage.model.Arguments;
 import io.github.neoramm.fastminimessage.model.PreComponent;
 import net.kyori.adventure.text.format.Style;
@@ -17,7 +18,9 @@ public final class InsertResolver implements ComponentResolver {
         final @NotNull MiniMessageCompiler compiler) {
         final String placeholder = args.get(0, "");
         final Style own = Style.style().insertion(placeholder).build();
-        if (StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own)) return children[0];
+        final @Nullable LiteralPreComponent merged =
+            StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);
+        if (merged != null) return merged;
         return new InsertingPreComponent(placeholder, children);
     }
 

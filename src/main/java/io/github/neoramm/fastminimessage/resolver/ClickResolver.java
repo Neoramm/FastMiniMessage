@@ -24,7 +24,9 @@ public final class ClickResolver implements ComponentResolver {
         final ClickEvent event = resolveClickEvent(actionName, rawValue);
         if (children.length == 0) return new LiteralPreComponent("", inheritedStyle);
         final Style own = Style.style().clickEvent(event).build();
-        if (StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own)) return children[0];
+        final @Nullable LiteralPreComponent merged =
+            StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);
+        if (merged != null) return merged;
         return new ClickPreComponent(event, children);
     }
 

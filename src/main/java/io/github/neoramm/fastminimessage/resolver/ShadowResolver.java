@@ -36,7 +36,9 @@ public final class ShadowResolver implements ComponentResolver {
             color = ShadowColor.shadowColor(textColor, (int) (alpha * 0xff));
         }
         final Style own = Style.style().shadowColor(color).build();
-        if (StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own)) return children[0];
+        final @Nullable LiteralPreComponent merged =
+            StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);
+        if (merged != null) return merged;
         return new ShadowPreComponent(color, children);
     }
 

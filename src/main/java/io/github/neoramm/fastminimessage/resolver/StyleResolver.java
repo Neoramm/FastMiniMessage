@@ -29,7 +29,9 @@ public final class StyleResolver implements ComponentResolver {
         final Style own = Style.style().decoration(decoration, !negate).build();
         final Style merged = StyleInheritance.compute(own, inheritedStyle);
         if (children.length == 0) return new LiteralPreComponent("", merged);
-        if (StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own)) return children[0];
+        final @Nullable LiteralPreComponent styledLiteral =
+            StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);
+        if (styledLiteral != null) return styledLiteral;
         final GroupPreComponent group = new GroupPreComponent(children);
         group.setStyle(merged);
         return group;

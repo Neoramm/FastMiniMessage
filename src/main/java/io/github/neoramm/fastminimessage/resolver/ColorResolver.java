@@ -4,6 +4,7 @@ import io.github.neoramm.fastminimessage.MiniMessageCompiler;
 import io.github.neoramm.fastminimessage.StyleInheritance;
 import io.github.neoramm.fastminimessage.api.ComponentResolver;
 import io.github.neoramm.fastminimessage.component.ColorPreComponent;
+import io.github.neoramm.fastminimessage.component.LiteralPreComponent;
 import io.github.neoramm.fastminimessage.model.Arguments;
 import io.github.neoramm.fastminimessage.model.PreComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -29,11 +30,15 @@ public final class ColorResolver implements ComponentResolver {
             final String colorName = args.get(0);
             final TextColor resolved = resolveColor(colorName);
             final Style own = Style.style().color(resolved).build();
-            if (StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own)) return children[0];
+            final @Nullable LiteralPreComponent merged =
+                StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);
+            if (merged != null) return merged;
             return new ColorPreComponent(resolved, children);
         }
         final Style own = Style.style().color(color).build();
-        if (StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own)) return children[0];
+        final @Nullable LiteralPreComponent merged =
+            StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);
+        if (merged != null) return merged;
         return new ColorPreComponent(color, children);
     }
 

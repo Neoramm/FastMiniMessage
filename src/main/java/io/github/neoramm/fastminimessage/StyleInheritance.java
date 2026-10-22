@@ -26,13 +26,15 @@ public final class StyleInheritance {
      * Pushes a tag style into its only literal child when that avoids a wrapper component,
      * so the render path creates one component less.
      *
-     * @return {@code true} when the style was applied and the wrapper can be skipped
+     * @return the styled literal, or {@code null} when the wrapper cannot be skipped
      */
-    public static boolean mergeIntoOnlyLiteral(final PreComponent @NotNull [] children, final @Nullable Style inherited,
-        final @NotNull Style own) {
-        if (children.length != 1 || !(children[0] instanceof final LiteralPreComponent literal)) return false;
+    public static @Nullable LiteralPreComponent mergeIntoOnlyLiteral(final PreComponent @NotNull [] children,
+        final @Nullable Style inherited, final @NotNull Style own) {
+        if (children.length != 1 || !(children[0] instanceof final LiteralPreComponent literal)) return null;
         final Style base = inherited != null ? inherited : Style.empty();
-        literal.setStyle(base.merge(own).merge(literal.getComputedStyle()));
-        return true;
+        final LiteralPreComponent merged = new LiteralPreComponent(
+            literal.getText(), base.merge(own).merge(literal.getComputedStyle()));
+        merged.setChildren(literal.getChildren());
+        return merged;
     }
 }
