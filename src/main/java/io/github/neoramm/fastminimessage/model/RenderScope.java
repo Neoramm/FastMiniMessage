@@ -1,5 +1,6 @@
 package io.github.neoramm.fastminimessage.model;
 
+import io.github.neoramm.fastminimessage.api.ComponentModifier;
 import io.github.neoramm.fastminimessage.resolver.ModifierResolver;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -54,7 +55,7 @@ public final class RenderScope {
     return null;
   }
 
-  public @Nullable io.github.neoramm.fastminimessage.api.ComponentModifier resolveModifier(final @NotNull String name) {
+  public @Nullable ComponentModifier resolveModifier(final @NotNull String name) {
     final ModifierResolver[] arr = modifiers;
     if (arr == null) return null;
     for (final ModifierResolver resolver : arr) {
@@ -65,7 +66,6 @@ public final class RenderScope {
     return null;
   }
 
-  // backward compat
   public @Nullable PreComponent resolve(final @NotNull String key) {
     return resolvePlaceholder(key);
   }

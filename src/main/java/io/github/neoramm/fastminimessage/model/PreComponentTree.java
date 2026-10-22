@@ -1,9 +1,9 @@
 package io.github.neoramm.fastminimessage.model;
 
+import io.github.neoramm.fastminimessage.MiniMessageCompiler;
 import io.github.neoramm.fastminimessage.api.PreComponentVisitor;
-import io.github.neoramm.fastminimessage.resolver.ModifierResolver;
 import io.github.neoramm.fastminimessage.component.InlinePreComponent;
-import io.github.neoramm.fastminimessage.component.UnparsedPreComponent;
+import io.github.neoramm.fastminimessage.resolver.ModifierResolver;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 /**
- * A compiled, renderable component tree produced by {@link io.github.neoramm.fastminimessage.MiniMessageCompiler}.
+ * A compiled, renderable component tree produced by {@link MiniMessageCompiler}.
  */
 public final class PreComponentTree {
   public static final PreComponentTree EMPTY = new PreComponentTree(new InlinePreComponent(Component.empty()));
@@ -37,17 +37,17 @@ public final class PreComponentTree {
     return root.render(pointered, scope);
   }
 
-  public Component render(Pointered pointered, io.github.neoramm.fastminimessage.resolver.ModifierResolver... modifiers) {
+  public Component render(Pointered pointered, ModifierResolver... modifiers) {
     return root.render(pointered, RenderScope.of(modifiers));
   }
 
   public Component render(Pointered pointered, RuntimeResolver... resolvers) {
-    java.util.List<Placeholder> placeholders = new java.util.ArrayList<>();
-    java.util.List<io.github.neoramm.fastminimessage.resolver.ModifierResolver> modifiers = new java.util.ArrayList<>();
+    List<Placeholder> placeholders = new java.util.ArrayList<>();
+    List<ModifierResolver> modifiers = new java.util.ArrayList<>();
     if (resolvers != null) {
       for (RuntimeResolver resolver : resolvers) {
         if (resolver instanceof Placeholder placeholder) placeholders.add(placeholder);
-        else if (resolver instanceof io.github.neoramm.fastminimessage.resolver.ModifierResolver modifier) modifiers.add(modifier);
+        else if (resolver instanceof ModifierResolver modifier) modifiers.add(modifier);
       }
     }
     return root.render(pointered, RenderScope.of(placeholders, modifiers));

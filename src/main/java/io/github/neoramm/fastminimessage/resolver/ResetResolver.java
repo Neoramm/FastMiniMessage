@@ -23,7 +23,6 @@ public final class ResetResolver implements ComponentResolver {
         return group;
     }
 
-    // Fallback for custom scanners: a reset tag wraps the content it resets.
     @Override
     public boolean isSelfClosing() {
         return false;

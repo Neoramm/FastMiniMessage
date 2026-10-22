@@ -36,22 +36,18 @@ class DiverseCasesTest {
   @Test
   void diverse() {
     String[] cases = {
-      // plain & colors
       "hello world",
       "<red>red text</red>",
       "<#ff0000>hex</#ff0000>",
       "<red><bold>rb</bold></red>",
       "<bold><italic><underlined><strikethrough><obfuscated>x</obfuscated></strikethrough></underlined></italic></bold>",
-      // reset variants
       "<red>a<reset>b",
       "<bold><red>a<reset>b",
       "<reset>abc",
       "<red>a</red><reset>b<bold>c</bold>",
       "<red>a</red>b<red>c</red>",
-      // negations
       "<bold>a<!bold>b</!bold>c</bold>",
       "<red>a<!red>b",
-      // click/hover/insert/shadow
       "<bold><red><click:run_command:'/spawn'>x</click></red></bold>",
       "<red><click:run_command:'/spawn'>a <bold>b</bold></click></red>",
       "<insert:'x'>a <underlined>b</underlined></insert>",
@@ -63,7 +59,6 @@ class DiverseCasesTest {
       "<hover:show_item:'minecraft:diamond':1>a</hover>",
       "<red><hover:show_item:'minecraft:diamond':1>a</hover></red>",
       "<hover:show_entity:'minecraft:zombie':00000000-0000-0000-0000-000000000000:'Zombie'>a</hover>",
-      // keybind/translatable/sprite/head
       "<key:key.jump/>",
       "<red><key:key.jump/></red>",
       "<lang:chat.type.text:Steve:hello/>",
@@ -73,7 +68,6 @@ class DiverseCasesTest {
       "<red><sprite:items:item/diamond/></red>",
       "<head:Steve/>",
       "<gold><head:Steve/></gold>",
-      // gradients
       "<gradient:red:blue>abc</gradient>",
       "<bold><gradient:red:blue>abc</gradient></bold>",
       "<gradient:red:blue><bold>a</bold>b</gradient>",
@@ -83,21 +77,17 @@ class DiverseCasesTest {
       "<gradient:red:blue><rainbow>abc</rainbow>def</gradient>",
       "<gradient:red:blue><key:key.jump/>abc</gradient>",
       "<gradient:#ff0000:#0000ff:0.5>abc</gradient>",
-      // rainbow/pride
       "<rainbow>abc</rainbow>",
       "<rainbow:5>abc</rainbow>",
       "<rainbow:0>abc</rainbow>",
       "<rainbow:!5>abc</rainbow>",
       "<pride>abc</pride>",
-      // newline
       "<newline/>",
       "<bold>a<br/>b</bold>",
       "<red>a<newline/>b</red>",
-      // emoji/surrogates
       "<red>😀a</red>",
       "<gradient:red:blue>😀a</gradient>",
       "😀🎉",
-      // empty/malformed
       "",
       "<bold>",
       "<red>a",
@@ -106,7 +96,6 @@ class DiverseCasesTest {
       "<unknown>x</unknown>",
       "<unknown/>",
       "<unknown>",
-      // new tags
       "<font:minecraft:default>text</font>",
       "<red><font:minecraft:default>text</font></red>",
       "<transition:red:blue:0.5/>",
@@ -117,20 +106,14 @@ class DiverseCasesTest {
       "<nbt:block:~ ~ ~:Items>",
       "<nbt:entity:@e:Inventory>",
       "<nbt:storage:foo:bar>",
-      // nested hover with gradient
       "<hover:show_text:'h'><gradient:red:blue>abc</gradient></hover>",
       "<gradient:red:blue><hover:show_text:'h'>b</hover></gradient>",
-      // click wrapping gradient
       "<click:run_command:'/x'><gradient:red:blue>abc</gradient></click>",
       "<gradient:red:blue><click:run_command:'/x'>abc</click></gradient>",
-      // multiple adjacent same style
       "<red>a</red><red>b</red>",
       "<red>a</red><blue>b</blue>",
-      // translatable with style
       "<red><lang:chat.type.text:Steve:hello/></red>",
-      // shadow nested
       "<shadow:red:0.4>a <bold>b</bold></shadow>",
-      // insert nested
       "<insert:'x'>a <underlined>b</underlined></insert>",
     };
     for (String s : cases) check(s);
@@ -151,7 +134,6 @@ class DiverseCasesTest {
       {"<key:key.jump/>", "X"}
     };
     for (String[] c : cases) {
-//      if (c[0].equals("<key:key.jump/>")) continue;
       PreComponentTree tree = compiler.compile(c[0]);
       Component actual = tree.render(NOBODY, Placeholder.ofUnparsed("p", c[1]));
       Component expected = miniMessage.deserialize(c[0].replace("<p>", c[1]));

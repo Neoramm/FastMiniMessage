@@ -1,3 +1,5 @@
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.neoramm/fastminimessage.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.neoramm/fastminimessage)
+
 # FastMiniMessage
 
 FastMiniMessage is a fast, precompiled implementation of the MiniMessage format for
