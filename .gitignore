@@ -1,3 +1,5 @@
+!README.md
+*.md
 .gradle
 build/
 gradle.properties
