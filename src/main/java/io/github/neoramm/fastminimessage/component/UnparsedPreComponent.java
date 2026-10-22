@@ -64,7 +64,7 @@ public final class UnparsedPreComponent extends PreComponent {
     @Override
     public boolean isStatic() {
         final PreComponent parsed = parsedComponent;
-        return parsed == null || parsed.isStatic();
+        return parsed != null && parsed.isStatic();
     }
 
     public @NotNull String getUnparsedTag() {
