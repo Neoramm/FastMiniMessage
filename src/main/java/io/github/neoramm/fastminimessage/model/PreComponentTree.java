@@ -63,25 +63,25 @@ public final class PreComponentTree {
     return root.render(pointered, RenderScope.of(placeholders, modifiers));
   }
 
-  public Component render(Pointered pointered, PreComponent extra) {
-    Component base = root.render(pointered);
-    Component appended = extra.render(pointered);
+  public Component render(@Nullable Pointered pointered, PreComponent extra) {
+    Component base = root.render(pointered, RenderScope.EMPTY);
+    Component appended = extra.render(pointered, RenderScope.EMPTY);
     return Component.text().append(base).append(appended).build();
   }
 
-  public Component render(Pointered pointered, PreComponent[] extras) {
-    TextComponent.Builder builder = Component.text().append(root.render(pointered));
+  public Component render(@Nullable Pointered pointered, PreComponent[] extras) {
+    TextComponent.Builder builder = Component.text().append(root.render(pointered, RenderScope.EMPTY));
     for (PreComponent extra : extras) {
-      builder.append(extra.render(pointered));
+      builder.append(extra.render(pointered, RenderScope.EMPTY));
     }
     return builder.build();
   }
 
-  public Component render(Pointered pointered, List<Placeholder> placeholders) {
+  public Component render(@Nullable Pointered pointered, List<Placeholder> placeholders) {
     return root.render(pointered, RenderScope.of(placeholders));
   }
 
-  public Component render(Pointered pointered, Placeholder... placeholders) {
+  public Component render(@Nullable Pointered pointered, Placeholder... placeholders) {
     return root.render(pointered, RenderScope.of(placeholders));
   }
 
@@ -101,9 +101,9 @@ public final class PreComponentTree {
     }
   }
 
-  public Component render(Pointered pointered, UnaryOperator<PreComponent> modifier) {
+  public Component render(@Nullable Pointered pointered, UnaryOperator<PreComponent> modifier) {
     PreComponent modifiedRoot = modifyDepthFirst(root.deepCopy(), modifier);
-    return modifiedRoot.render(pointered);
+    return modifiedRoot.render(pointered, RenderScope.EMPTY);
   }
 
   private PreComponent modifyDepthFirst(PreComponent node, UnaryOperator<PreComponent> modifier) {
