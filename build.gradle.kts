@@ -4,7 +4,9 @@ plugins {
 }
 
 group = "io.github.neoramm"
-version = "1.0.0"
+version = "1.1.0"
+
+val kyoriVersion = "4.26.1"
 
 repositories {
     mavenCentral()
@@ -13,9 +15,9 @@ repositories {
 dependencies {
     compileOnly("org.jetbrains:annotations:26.0.2")
 
-    api("net.kyori:adventure-api:4.26.1")
-    api("net.kyori:adventure-text-minimessage:4.26.1")
-    testImplementation("net.kyori:adventure-text-serializer-plain:4.26.1")
+    api("net.kyori:adventure-api:$kyoriVersion")
+    testImplementation("net.kyori:adventure-text-minimessage:$kyoriVersion")
+    testImplementation("net.kyori:adventure-text-serializer-plain:$kyoriVersion")
     testImplementation(platform("org.junit:junit-bom:6.0.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -54,7 +56,7 @@ mavenPublishing {
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
 
-    coordinates("io.github.neoramm", "fastminimessage", "1.0.0")
+    coordinates("io.github.neoramm", "fastminimessage")
 
     pom {
         name.set("FastMiniMessage")
