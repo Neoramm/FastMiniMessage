@@ -57,11 +57,6 @@ public final class DeferredTagPreComponent extends PreComponent {
     }
 
     @Override
-    public boolean isStatic() {
-        return false;
-    }
-
-    @Override
     public @NotNull PreComponent deepCopy() {
         final PreComponent @NotNull [] source = getChildren();
         final PreComponent @NotNull [] copied = new PreComponent[source.length];

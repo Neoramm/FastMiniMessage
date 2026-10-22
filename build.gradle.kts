@@ -4,9 +4,9 @@ plugins {
 }
 
 group = "io.github.neoramm"
-version = "1.1.0"
+version = "1.2.0"
 
-val kyoriVersion = "4.26.1"
+val kyoriVersion = "5.2.0"
 
 repositories {
     mavenCentral()

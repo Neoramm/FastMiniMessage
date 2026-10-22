@@ -72,7 +72,7 @@ final class NbtResolverTest {
 
     @Test
     void interpretFlagFollowsTheSeparator() {
-        final NBTComponent<?, ?> component = (NBTComponent<?, ?>) render("<nbt:entity:@e:Inventory:', ':interpret>");
+        final NBTComponent<?> component = (NBTComponent<?>) render("<nbt:entity:@e:Inventory:', ':interpret>");
         assertTrue(component.interpret());
         assertEquals(", ", plainText(component.separator()));
     }

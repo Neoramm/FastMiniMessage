@@ -6,6 +6,7 @@ import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.Style;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.UnknownNullability;
 
 /**
  * Base type of every node in a precompiled component tree.
@@ -14,7 +15,7 @@ public abstract class PreComponent {
 
     private static final PreComponent @NotNull [] EMPTY_CHILDREN = new PreComponent[0];
 
-    protected @Nullable PreComponent[] children;
+    protected @UnknownNullability PreComponent[] children;
     protected @Nullable Style computedStyle = Style.empty();
 
     public @NotNull Component render(final @Nullable Pointered pointered) {

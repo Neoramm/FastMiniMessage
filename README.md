@@ -105,7 +105,7 @@ not tree shape, since FastMiniMessage deliberately flattens style wrappers.
 ## Requirements
 
 - Java 21 or higher.
-- Kyori Adventure 4.26+ (provided by the consumer).
+- Kyori Adventure 5.2.0+ (provided by the consumer).
 
 ## License
 

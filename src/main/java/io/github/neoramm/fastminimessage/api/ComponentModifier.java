@@ -1,5 +1,6 @@
 package io.github.neoramm.fastminimessage.api;
 
+import io.github.neoramm.fastminimessage.resolver.ModifierResolver;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
@@ -24,5 +25,9 @@ public interface ComponentModifier {
       */
     default boolean isStatic() {
         return false;
+    }
+
+    static ModifierResolver of(final @NotNull String name, final @NotNull ComponentModifier modifier) {
+        return new ModifierResolver(name, modifier);
     }
 }
