@@ -14,9 +14,7 @@ import io.github.neoramm.fastminimessage.model.PreComponent;
 import io.github.neoramm.fastminimessage.model.PreComponentTree;
 import io.github.neoramm.fastminimessage.model.TagNode;
 import io.github.neoramm.fastminimessage.resolver.ModifierResolver;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.Style;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -29,7 +27,6 @@ import java.util.List;
 public final class MiniMessageCompiler {
     private final @NotNull ResolverRegistry registry;
     private final @NotNull TagScanner scanner;
-    private final @NotNull MiniMessage miniMessage = MiniMessage.miniMessage();
 
     public MiniMessageCompiler(final @NotNull ResolverRegistry registry) {
         this.registry = registry;
@@ -51,10 +48,6 @@ public final class MiniMessageCompiler {
             ? components.getFirst()
             : new GroupPreComponent(components.toArray(new PreComponent[0]));
         return new PreComponentTree(StyleFlattener.flatten(rootComponent));
-    }
-
-    public @NotNull Component deserialize(final @NotNull String input) {
-        return miniMessage.deserialize(input);
     }
 
     public void registerModifier(final @NotNull String name, final @NotNull ComponentModifier modifier) {

@@ -2,10 +2,10 @@ package io.github.neoramm.fastminimessage.resolver;
 
 import io.github.neoramm.fastminimessage.MiniMessageCompiler;
 import io.github.neoramm.fastminimessage.api.ComponentResolver;
-import io.github.neoramm.fastminimessage.component.StaticComponentPreComponent;
+import io.github.neoramm.fastminimessage.component.SelectorPreComponent;
 import io.github.neoramm.fastminimessage.model.Arguments;
 import io.github.neoramm.fastminimessage.model.PreComponent;
-import net.kyori.adventure.text.Component;
+import io.github.neoramm.fastminimessage.model.PreComponentTree;
 import net.kyori.adventure.text.format.Style;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -17,10 +17,9 @@ public final class SelectorResolver implements ComponentResolver {
         final @NotNull MiniMessageCompiler compiler) {
         if (args.isEmpty()) throw new IllegalArgumentException("A selection key is required");
         final String key = args.get(0);
-        @Nullable Component separator = null;
-        if (args.size() > 1 && args.get(1) != null) separator = compiler.deserialize(args.get(1));
-        final Component selector = separator == null ? Component.selector(key) : Component.selector(key, separator);
-        return new StaticComponentPreComponent(selector);
+        final @Nullable PreComponentTree separator =
+            args.size() > 1 && args.get(1) != null ? compiler.compile(args.get(1)) : null;
+        return new SelectorPreComponent(key, separator);
     }
 
     @Override

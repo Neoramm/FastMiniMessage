@@ -87,6 +87,10 @@ public final class PreComponentTree {
         return root.render(pointered, RenderScope.of(placeholders));
     }
 
+    public boolean isStatic() {
+        return root.isStatic();
+    }
+
     public @NotNull PreComponentTree copy() {
         return new PreComponentTree(root.deepCopy());
     }
