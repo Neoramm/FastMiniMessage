@@ -4,13 +4,13 @@ plugins {
 }
 
 group = "io.github.neoramm"
-version = "1.3.0"
+version = providers.gradleProperty("version").getOrElse("1.3.0")
 
 base {
     archivesName.set("fastminimessage")
 }
 
-val kyoriVersion = "5.2.0"
+val kyoriVersion = providers.gradleProperty("adventureVersion").getOrElse("5.2.0")
 
 repositories {
     mavenCentral()

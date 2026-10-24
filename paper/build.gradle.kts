@@ -4,14 +4,15 @@ plugins {
 }
 
 group = "io.github.neoramm"
-version = "1.3.0"
+version = providers.gradleProperty("version").getOrElse("1.3.0")
 
 base {
     archivesName.set("fastminimessage-paper")
 }
 
-val paperVersion = "26.2.build.134-stable"
-val placeholderApiVersion = "2.12.3"
+val kyoriVersion = providers.gradleProperty("adventureVersion").getOrElse("5.2.0")
+val paperVersion = providers.gradleProperty("paperVersion").getOrElse("26.2.build.134-stable")
+val placeholderApiVersion = providers.gradleProperty("placeholderApiVersion").getOrElse("2.12.3")
 
 repositories {
     mavenCentral()
@@ -27,7 +28,7 @@ dependencies {
     compileOnly("me.clip:placeholderapi:$placeholderApiVersion")
 
     testImplementation("io.papermc.paper:paper-api:$paperVersion")
-    testImplementation("net.kyori:adventure-text-serializer-plain:5.2.0")
+    testImplementation("net.kyori:adventure-text-serializer-plain:$kyoriVersion")
     testImplementation(platform("org.junit:junit-bom:6.0.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
