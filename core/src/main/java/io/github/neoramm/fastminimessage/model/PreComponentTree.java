@@ -57,13 +57,15 @@ public final class PreComponentTree {
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RuntimeResolver... resolvers) {
         final List<Placeholder> placeholders = new ArrayList<>();
         final List<ModifierResolver> modifiers = new ArrayList<>();
+        final List<RuntimeTagResolver> tagResolvers = new ArrayList<>();
         if (resolvers != null) {
             for (final RuntimeResolver resolver : resolvers) {
                 if (resolver instanceof final Placeholder placeholder) placeholders.add(placeholder);
                 else if (resolver instanceof final ModifierResolver modifier) modifiers.add(modifier);
+                else if (resolver instanceof final RuntimeTagResolver tagResolver) tagResolvers.add(tagResolver);
             }
         }
-        return root.render(pointered, RenderScope.of(placeholders, modifiers));
+        return root.render(pointered, RenderScope.of(placeholders, modifiers, tagResolvers));
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull PreComponent extra) {

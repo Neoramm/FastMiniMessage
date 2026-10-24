@@ -4,6 +4,8 @@ import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.pointer.Pointers;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
@@ -50,6 +52,7 @@ final class ComplexLongInputTest {
     void complexLongInputMatches() {
         final Component reference = miniMessage.deserialize(LONG);
         final Component rendered = compiler.compile(LONG).render(NOBODY);
+        miniMessage.deserialize(LONG, TagResolver.builder().build());
         final List<String> expected = ComponentComparison.expression(reference);
         final List<String> actual = ComponentComparison.expression(rendered);
         assertEquals(expected, actual, "complex long input expression differs");

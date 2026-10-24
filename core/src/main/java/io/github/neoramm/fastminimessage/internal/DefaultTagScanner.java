@@ -53,17 +53,19 @@ public final class DefaultTagScanner implements TagScanner {
                 } else {
                     final String[] parts = splitTag(content);
                     final String tagName = normalizeName(parts[0]);
-                    final String rawArgs = parts.length > 1 ? parts[1] : "";
+                    final boolean hasArguments = parts.length > 1;
+                    final String rawArgs = hasArguments ? parts[1] : "";
                     if ("reset".equals(tagName)) {
                         closeAll(stack, roots);
                         continue;
                     }
                     if (isSelfClosing) {
-                        final TagNode selfClosing = new TagNode(tagName, rawArgs, "", List.of(), false, true, false);
+                        final TagNode selfClosing =
+                            new TagNode(tagName, rawArgs, "", List.of(), hasArguments, false, true, false);
                         if (stack.isEmpty()) roots.add(selfClosing);
                         else stack.peek().addChild(selfClosing);
                     } else {
-                        stack.push(new OpenTag(tagName, rawArgs));
+                        stack.push(new OpenTag(tagName, rawArgs, hasArguments));
                     }
                 }
             } else if (c == '\\' && i + 1 < normalized.length() && normalized.charAt(i + 1) == '<') {
@@ -98,7 +100,7 @@ public final class DefaultTagScanner implements TagScanner {
         if (buffer.isEmpty()) return;
         final String text = buffer.toString();
         buffer.setLength(0);
-        final TagNode textNode = new TagNode("", "", text, List.of(), false, false, false);
+        final TagNode textNode = new TagNode("", "", text, List.of(), false, false, false, false);
         if (stack.isEmpty()) roots.add(textNode);
         else stack.peek().addChild(textNode);
     }
@@ -146,11 +148,13 @@ public final class DefaultTagScanner implements TagScanner {
     private static final class OpenTag {
         final @NotNull String tagName;
         final @NotNull String rawArgs;
+        final boolean hasArguments;
         final @NotNull List<@NotNull TagNode> children = new ArrayList<>();
 
-        OpenTag(final @NotNull String tagName, final @NotNull String rawArgs) {
+        OpenTag(final @NotNull String tagName, final @NotNull String rawArgs, final boolean hasArguments) {
             this.tagName = tagName;
             this.rawArgs = rawArgs;
+            this.hasArguments = hasArguments;
         }
 
         void addChild(final @NotNull TagNode child) {
@@ -158,7 +162,7 @@ public final class DefaultTagScanner implements TagScanner {
         }
 
         @NotNull TagNode build(final boolean explicitlyClosed) {
-            return new TagNode(tagName, rawArgs, "", children, false, false, explicitlyClosed);
+            return new TagNode(tagName, rawArgs, "", children, hasArguments, false, false, explicitlyClosed);
         }
     }
 }

@@ -2,6 +2,7 @@ package io.github.neoramm.fastminimessage;
 
 import io.github.neoramm.fastminimessage.api.ComponentModifier;
 import io.github.neoramm.fastminimessage.api.ComponentResolver;
+import io.github.neoramm.fastminimessage.api.DialogResolver;
 import io.github.neoramm.fastminimessage.api.TagScanner;
 import io.github.neoramm.fastminimessage.component.DeferredTagPreComponent;
 import io.github.neoramm.fastminimessage.component.GroupPreComponent;
@@ -14,6 +15,7 @@ import io.github.neoramm.fastminimessage.model.PreComponent;
 import io.github.neoramm.fastminimessage.model.PreComponentTree;
 import io.github.neoramm.fastminimessage.model.TagNode;
 import io.github.neoramm.fastminimessage.resolver.ModifierResolver;
+import net.kyori.adventure.dialog.DialogLike;
 import net.kyori.adventure.text.format.Style;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -27,10 +29,37 @@ import java.util.List;
 public final class MiniMessageCompiler {
     private final @NotNull ResolverRegistry registry;
     private final @NotNull TagScanner scanner;
+    private @Nullable DialogResolver dialogResolver;
 
     public MiniMessageCompiler(final @NotNull ResolverRegistry registry) {
+        this(registry, new DefaultTagScanner());
+    }
+
+    public MiniMessageCompiler(final @NotNull ResolverRegistry registry, final @NotNull TagScanner scanner) {
         this.registry = registry;
-        this.scanner = new DefaultTagScanner();
+        this.scanner = scanner;
+    }
+
+    /**
+     * Sets the resolver used by dialog-aware tags such as {@code click:show_dialog}.
+     *
+     * @param dialogResolver the platform dialog resolver, or {@code null} to keep the literal fallback
+     * @return this compiler for chaining
+     */
+    public @NotNull MiniMessageCompiler dialogResolver(final @Nullable DialogResolver dialogResolver) {
+        this.dialogResolver = dialogResolver;
+        return this;
+    }
+
+    /**
+     * Resolves a dialog reference through the configured {@link DialogResolver}.
+     *
+     * @param reference the raw reference from the tag
+     * @return the dialog, or {@code null} when no resolver is configured or the reference is unknown
+     */
+    public @Nullable DialogLike resolveDialog(final @NotNull String reference) {
+        final @Nullable DialogResolver resolver = dialogResolver;
+        return resolver == null ? null : resolver.resolve(reference);
     }
 
     /**
@@ -54,6 +83,10 @@ public final class MiniMessageCompiler {
         registry.register(new ModifierResolver(name, modifier));
     }
 
+    public @Nullable ComponentResolver findResolver(final @NotNull String tagName) {
+        return registry.resolve(tagName);
+    }
+
     private @NotNull List<@NotNull TagNode> flattenSelfClosing(final @NotNull List<@NotNull TagNode> nodes) {
         final List<TagNode> result = new ArrayList<>(nodes.size());
         for (final TagNode node : nodes) {
@@ -67,6 +100,7 @@ public final class MiniMessageCompiler {
                     node.rawArgs(),
                     node.textContent(),
                     List.of(),
+                    node.hasArguments(),
                     false,
                     true,
                     node.explicitlyClosed()
@@ -78,6 +112,7 @@ public final class MiniMessageCompiler {
                     node.rawArgs(),
                     node.textContent(),
                     flattenedChildren,
+                    node.hasArguments(),
                     node.isClosingTag(),
                     node.isSelfClosing(),
                     node.explicitlyClosed()
@@ -101,17 +136,18 @@ public final class MiniMessageCompiler {
         for (int i = 0; i < styled.children().size(); i++) childComponents[i] = resolveStyled(styled.children().get(i));
         if (containsPlaceholder(node.rawArgs())) {
             return new DeferredTagPreComponent(node.tagName(), node.rawArgs(), childComponents, styled.computedStyle(),
-                node.isSelfClosing(), node.explicitlyClosed(), this);
+                node.hasArguments(), node.isSelfClosing(), node.explicitlyClosed(), this);
         }
         if (node.tagName().isEmpty()) return new LiteralPreComponent(node.textContent(), styled.computedStyle);
         final ComponentResolver resolver = registry.resolve(node.tagName());
         if (node.isSelfClosing()) {
             if (resolver != null) return resolveSafely(resolver, node, new PreComponent[0], styled.computedStyle);
-            return new UnparsedPreComponent(node.tagName(), selfTagOf(node.tagName(), node.rawArgs()));
+            return new DeferredTagPreComponent(node.tagName(), node.rawArgs(), new PreComponent[0], styled.computedStyle(),
+                node.hasArguments(), true, false, this);
         }
         if (resolver == null) {
             return new DeferredTagPreComponent(node.tagName(), node.rawArgs(), childComponents, styled.computedStyle(),
-                node.isSelfClosing(), node.explicitlyClosed(), this);
+                node.hasArguments(), node.isSelfClosing(), node.explicitlyClosed(), this);
         }
         return resolveSafely(resolver, node, childComponents, styled.computedStyle);
     }
@@ -121,28 +157,41 @@ public final class MiniMessageCompiler {
         try {
             return resolver.resolve(node.tagName(), Arguments.parse(node.rawArgs()), children, style, this);
         } catch (final RuntimeException | LinkageError unsupported) {
-            final PreComponent @NotNull [] parts = new PreComponent[children.length + 1];
+            final boolean closing = node.explicitlyClosed() && !node.isSelfClosing();
+            final PreComponent @NotNull [] parts = new PreComponent[children.length + 1 + (closing ? 1 : 0)];
             parts[0] = new UnparsedPreComponent(rawTag(node), rawTag(node));
             System.arraycopy(children, 0, parts, 1, children.length);
+            if (closing) parts[parts.length - 1] = new UnparsedPreComponent(node.tagName(), "</" + node.tagName() + ">");
             return new GroupPreComponent(parts);
         }
     }
 
     private static @NotNull String rawTag(final @NotNull TagNode node) {
-        return openTagOf(node.tagName(), node.rawArgs());
+        return openTagOf(node.tagName(), node.rawArgs(), node.hasArguments());
     }
 
-    private static @NotNull String selfTagOf(final @NotNull String tagName, final @NotNull String rawArgs) {
-        return rawArgs.isEmpty() ? "<" + tagName + "/>" : "<" + tagName + ":" + rawArgs + "/>";
+    private static @NotNull String selfTagOf(final @NotNull String tagName, final @NotNull String rawArgs,
+        final boolean hasArguments) {
+        return hasArguments || !rawArgs.isEmpty()
+            ? "<" + tagName + ":" + rawArgs + "/>" : "<" + tagName + "/>";
     }
 
-    private static @NotNull String openTagOf(final @NotNull String tagName, final @NotNull String rawArgs) {
-        return rawArgs.isEmpty() ? "<" + tagName + ">" : "<" + tagName + ":" + rawArgs + ">";
+    private static @NotNull String openTagOf(final @NotNull String tagName, final @NotNull String rawArgs,
+        final boolean hasArguments) {
+        return hasArguments || !rawArgs.isEmpty()
+            ? "<" + tagName + ":" + rawArgs + ">" : "<" + tagName + ">";
     }
 
     public @NotNull PreComponent resolveTag(final @NotNull String tagName, final @NotNull String rawArgs,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle, final boolean selfClosing,
         final boolean explicitlyClosed) {
+        return resolveTag(tagName, rawArgs, children, inheritedStyle, !rawArgs.isEmpty(), selfClosing,
+            explicitlyClosed);
+    }
+
+    public @NotNull PreComponent resolveTag(final @NotNull String tagName, final @NotNull String rawArgs,
+        final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle, final boolean hasArguments,
+        final boolean selfClosing, final boolean explicitlyClosed) {
         if (tagName.isEmpty()) return new LiteralPreComponent("", inheritedStyle);
         final ComponentResolver resolver = registry.resolve(tagName);
         if (selfClosing) {
@@ -156,16 +205,16 @@ public final class MiniMessageCompiler {
                         this
                     );
                 } catch (final RuntimeException | LinkageError unsupported) {
-                    final String selfTag = selfTagOf(tagName, rawArgs);
+                    final String selfTag = selfTagOf(tagName, rawArgs, hasArguments);
                     return new UnparsedPreComponent(tagName, selfTag);
                 }
             }
-            final String selfTag = selfTagOf(tagName, rawArgs);
+            final String selfTag = selfTagOf(tagName, rawArgs, hasArguments);
             return new UnparsedPreComponent(tagName, selfTag);
         }
         if (resolver == null) {
             final List<PreComponent> parts = new ArrayList<>();
-            final String openTag = openTagOf(tagName, rawArgs);
+            final String openTag = openTagOf(tagName, rawArgs, hasArguments);
             parts.add(new UnparsedPreComponent(tagName, openTag));
             for (final PreComponent child : children) parts.add(child);
             if (explicitlyClosed) parts.add(new UnparsedPreComponent(tagName, "</" + tagName + ">"));
@@ -176,7 +225,7 @@ public final class MiniMessageCompiler {
         try {
             return resolver.resolve(tagName, Arguments.parse(rawArgs), children, inheritedStyle, this);
         } catch (final RuntimeException | LinkageError unsupported) {
-            final String openTag = openTagOf(tagName, rawArgs);
+            final String openTag = openTagOf(tagName, rawArgs, hasArguments);
             final PreComponent @NotNull [] parts = new PreComponent[children.length + 1];
             parts[0] = new UnparsedPreComponent(openTag, openTag);
             System.arraycopy(children, 0, parts, 1, children.length);

@@ -9,6 +9,7 @@ public record TagNode(
     @NotNull String rawArgs,
     @NotNull String textContent,
     @NotNull List<@NotNull TagNode> children,
+    boolean hasArguments,
     boolean isClosingTag,
     boolean isSelfClosing,
     boolean explicitlyClosed

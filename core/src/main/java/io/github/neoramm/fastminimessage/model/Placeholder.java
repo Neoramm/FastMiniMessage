@@ -7,41 +7,26 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Binds a placeholder key to a component substituted at render time.
  */
-public final class Placeholder implements RuntimeResolver {
-    private final @NotNull String key;
-    private final @NotNull PreComponent preComponent;
-
-    public Placeholder(final @NotNull String key, final @NotNull PreComponent preComponent) {
-        this.key = key;
-        this.preComponent = preComponent;
-    }
-
-    public @NotNull String getKey() {
-        return key;
-    }
-
-    public @NotNull PreComponent getPreComponent() {
-        return preComponent;
-    }
+public record Placeholder(@NotNull String key, @NotNull PreComponent preComponent) implements RuntimeResolver {
 
     /**
-      * Creates an unparsed placeholder that renders the given plain text.
-      *
-      * @param key the placeholder key
-      * @param plain the plain text to render
-      * @return the placeholder
-      */
+     * Creates an unparsed placeholder that renders the given plain text.
+     *
+     * @param key   the placeholder key
+     * @param plain the plain text to render
+     * @return the placeholder
+     */
     public static Placeholder ofUnparsed(final @NotNull String key, final @NotNull String plain) {
         return new Placeholder(key, new InlinePreComponent(Component.text(plain)));
     }
 
     /**
-      * Creates a parsed placeholder that renders the given component.
-      *
-      * @param key the placeholder key
-      * @param component the component to render
-      * @return the placeholder
-      */
+     * Creates a parsed placeholder that renders the given component.
+     *
+     * @param key       the placeholder key
+     * @param component the component to render
+     * @return the placeholder
+     */
     public static Placeholder ofParsed(final @NotNull String key, final @NotNull Component component) {
         return new Placeholder(key, new InlinePreComponent(component));
     }

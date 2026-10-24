@@ -20,6 +20,7 @@ dependencies {
     compileOnly("org.jetbrains:annotations:26.0.2")
 
     api("net.kyori:adventure-api:$kyoriVersion")
+    compileOnly("net.kyori:adventure-text-minimessage:$kyoriVersion")
     testImplementation("net.kyori:adventure-text-minimessage:$kyoriVersion")
     testImplementation("net.kyori:adventure-text-serializer-plain:$kyoriVersion")
     testImplementation(platform("org.junit:junit-bom:6.0.0"))
@@ -46,6 +47,23 @@ tasks.register<JavaExec>("jmh") {
     }
     val extra = (project.findProperty("jmhArgs") as String?)?.split(" ")?.filter { it.isNotBlank() } ?: emptyList()
     args = listOf("-prof", "gc", "-rf", "json", "-rff", results.get().asFile.absolutePath) + extra
+}
+
+tasks.register<JavaExec>("jmhIntense") {
+    group = "benchmark"
+    description = "Intense JMH run (-wi 10 -i 20 -f 3 -w 3s -r 3s)"
+    dependsOn(tasks.named("testClasses"))
+    mainClass.set("org.openjdk.jmh.Main")
+    classpath = sourceSets["test"].runtimeClasspath
+    val results = layout.buildDirectory.file("jmh/results-intense.json")
+    doFirst {
+        results.get().asFile.parentFile.mkdirs()
+    }
+    val extra = (project.findProperty("jmhArgs") as String?)?.split(" ")?.filter { it.isNotBlank() } ?: emptyList()
+    args = listOf(
+        "-prof", "gc", "-rf", "json", "-rff", results.get().asFile.absolutePath,
+        "-wi", "10", "-i", "20", "-f", "3", "-w", "3s", "-r", "3s"
+    ) + extra
 }
 
 tasks.withType<JavaCompile>().configureEach {
