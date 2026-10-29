@@ -4,6 +4,7 @@ import io.github.neoramm.fastminimessage.LegacyFormatParser;
 import io.github.neoramm.fastminimessage.api.TagScanner;
 import io.github.neoramm.fastminimessage.model.TagNode;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -29,33 +30,43 @@ public final class DefaultTagScanner implements TagScanner {
                     i++;
                     continue;
                 }
-                final String tagText = normalized.substring(i, end + 1);
+                final int tagStart = i;
                 String content = normalized.substring(i + 1, end);
                 i = end + 1;
+                if (content.isEmpty()) {
+                    textBuffer.append("<>");
+                    continue;
+                }
                 final boolean isClosing = content.startsWith("/");
                 final boolean isSelfClosing = content.endsWith("/");
-                if (isSelfClosing) content = content.substring(0, content.length() - 1);
+                if (isSelfClosing && content.length() > 1) content = content.substring(0, content.length() - 1);
                 if (isClosing) {
-                    final String tagName = normalizeName(content.substring(1));
-                    if ("reset".equals(tagName)) continue;
+                    if (content.length() <= 1) {
+                        textBuffer.append(normalized, tagStart, end + 1);
+                        continue;
+                    }
+                    final String[] closeParts = splitTag(content.substring(1));
+                    final String closeTagName = closeParts[0];
+                    final String closeArgs = closeParts.length > 1 ? closeParts[1] : null;
+                    if ("reset".equalsIgnoreCase(closeTagName)) continue;
                     boolean open = false;
                     for (final OpenTag tag : stack) {
-                        if (tag.tagName.equals(tagName)) {
+                        if (tagMatches(tag, closeTagName, closeArgs)) {
                             open = true;
                             break;
                         }
                     }
                     if (!open) {
-                        textBuffer.append(tagText);
+                        textBuffer.append(normalized, tagStart, end + 1);
                         continue;
                     }
-                    closeUpTo(tagName, stack, roots);
+                    closeUpTo(closeTagName, closeArgs, stack, roots);
                 } else {
                     final String[] parts = splitTag(content);
-                    final String tagName = normalizeName(parts[0]);
+                    final String tagName = parts[0];
                     final boolean hasArguments = parts.length > 1;
                     final String rawArgs = hasArguments ? parts[1] : "";
-                    if ("reset".equals(tagName)) {
+                    if ("reset".equalsIgnoreCase(tagName)) {
                         closeAll(stack, roots);
                         continue;
                     }
@@ -90,11 +101,6 @@ public final class DefaultTagScanner implements TagScanner {
         }
     }
 
-    private @NotNull String normalizeName(final @NotNull String name) {
-        if (name.startsWith("#")) return "color";
-        return name;
-    }
-
     private void flushText(final @NotNull StringBuilder buffer, final @NotNull Deque<OpenTag> stack,
         final @NotNull List<TagNode> roots) {
         if (buffer.isEmpty()) return;
@@ -105,11 +111,18 @@ public final class DefaultTagScanner implements TagScanner {
         else stack.peek().addChild(textNode);
     }
 
-    private void closeUpTo(final @NotNull String tagName, final @NotNull Deque<OpenTag> stack,
-        final @NotNull List<TagNode> roots) {
+    private static boolean tagMatches(final @NotNull OpenTag openTag, final @NotNull String closeTagName,
+        final @Nullable String closeArgs) {
+        if (!openTag.tagName.equalsIgnoreCase(closeTagName)) return false;
+        if (closeArgs == null) return true;
+        return openTag.rawArgs.equals(closeArgs) || openTag.rawArgs.startsWith(closeArgs + ":");
+    }
+
+    private void closeUpTo(final @NotNull String closeTagName, final @Nullable String closeArgs,
+        final @NotNull Deque<OpenTag> stack, final @NotNull List<TagNode> roots) {
         boolean open = false;
         for (final OpenTag tag : stack) {
-            if (tag.tagName.equals(tagName)) {
+            if (tagMatches(tag, closeTagName, closeArgs)) {
                 open = true;
                 break;
             }
@@ -119,7 +132,7 @@ public final class DefaultTagScanner implements TagScanner {
         while (!stack.isEmpty()) {
             final OpenTag tag = stack.pop();
             if (closed != null) tag.addChild(closed);
-            final boolean matched = tag.tagName.equals(tagName);
+            final boolean matched = tagMatches(tag, closeTagName, closeArgs);
             closed = tag.build(matched);
             if (matched) break;
         }
@@ -131,15 +144,20 @@ public final class DefaultTagScanner implements TagScanner {
         char quote = 0;
         for (int i = start + 1; i < input.length(); i++) {
             final char c = input.charAt(i);
+            if (c == '\\' && i + 1 < input.length()) {
+                i++;
+                continue;
+            }
             if (quote == 0 && (c == '\'' || c == '"')) quote = c;
             else if (quote != 0 && c == quote) quote = 0;
+            else if (c == '<' && quote == 0) return -1;
             else if (c == '>' && quote == 0) return i;
         }
         return -1;
     }
 
     private @NotNull String @NotNull [] splitTag(final @NotNull String content) {
-        if (content.startsWith("#")) return new String[]{"color", content};
+        if (content.startsWith("#")) return new String[]{content, content};
         final int colon = content.indexOf(':');
         if (colon == -1) return new String[]{content};
         return new String[]{content.substring(0, colon), content.substring(colon + 1)};

@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public final class StaticComponentPreComponent extends PreComponent {
     private final @NotNull Component component;
+    private volatile @Nullable Component cached;
 
     public StaticComponentPreComponent(final @NotNull Component component) {
         this.component = component;
@@ -20,14 +21,25 @@ public final class StaticComponentPreComponent extends PreComponent {
 
     @Override
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
-        final Style style = computedStyle != null ? computedStyle : Style.empty();
-        if (style.isEmpty()) return component;
-        return component.style(style.merge(component.style()));
+        final Component current = cached;
+        if (current != null) return current;
+        final Style style = computedStyle;
+        final Component built = (style == null || style.isEmpty())
+            ? component
+            : component.style(style.merge(component.style()));
+        cached = built;
+        return built;
     }
 
     @Override
     public boolean isStatic() {
         return true;
+    }
+
+    @Override
+    public @NotNull PreComponent setStyle(final @Nullable Style style) {
+        cached = null;
+        return super.setStyle(style);
     }
 
     @Override

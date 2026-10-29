@@ -12,20 +12,21 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class InsertResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"insert", "insertion"};
     @Override
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        final String placeholder = args.get(0, "");
+        final String placeholder = args.getFirst("");
         final Style own = Style.style().insertion(placeholder).build();
         final @Nullable LiteralPreComponent merged =
             StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);
         if (merged != null) return merged;
-        return new InsertingPreComponent(placeholder, children);
+        return new InsertingPreComponent(placeholder, children).setStyle(inheritedStyle);
     }
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"insert", "insertion"};
+        return NAMES;
     }
 }

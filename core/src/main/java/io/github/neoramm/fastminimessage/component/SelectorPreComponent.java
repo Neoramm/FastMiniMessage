@@ -12,6 +12,7 @@ import org.jetbrains.annotations.Nullable;
 public final class SelectorPreComponent extends PreComponent {
     private final @NotNull String key;
     private final @Nullable PreComponentTree separator;
+    private volatile @Nullable Component cachedComponent;
 
     public SelectorPreComponent(final @NotNull String key, final @Nullable PreComponentTree separator) {
         this.key = key;
@@ -20,13 +21,23 @@ public final class SelectorPreComponent extends PreComponent {
 
     @Override
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
+        final @Nullable Component cached = this.cachedComponent;
+        if (cached != null && scope.isEmpty()) return cached;
         final @Nullable PreComponentTree separator = this.separator;
         final Component component = separator == null
             ? Component.selector(key)
             : Component.selector(key, separator.render(pointered, scope));
         final Style style = computedStyle != null ? computedStyle : Style.empty();
-        if (style.isEmpty()) return component;
-        return component.style(style.merge(component.style()));
+        final Component result = style.isEmpty() ? component : component.style(style.merge(component.style()));
+        if (isStatic() && scope.isEmpty()) this.cachedComponent = result;
+        return result;
+    }
+
+    @Override
+    public @NotNull PreComponent setStyle(final @Nullable Style style) {
+        super.setStyle(style);
+        this.cachedComponent = null;
+        return this;
     }
 
     @Override

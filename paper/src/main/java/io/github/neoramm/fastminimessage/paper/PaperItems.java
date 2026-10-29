@@ -32,14 +32,23 @@ public final class PaperItems {
     }
 
     private static @NotNull ItemStack item(final @NotNull String reference, final int count) {
+        final @Nullable Material material = Material.matchMaterial(reference);
+        if (material != null && !material.isAir()) return ItemStack.of(material, Math.max(1, count));
+        if (!isBase64(reference)) throw new IllegalArgumentException("Unknown item: " + reference);
         try {
             return ItemStack.deserializeBytes(Base64.getDecoder().decode(reference));
         } catch (final RuntimeException notItemBytes) {
-            final @Nullable Material material = Material.matchMaterial(reference);
-            if (material == null || material.isAir()) {
-                throw new IllegalArgumentException("Unknown item: " + reference, notItemBytes);
-            }
-            return ItemStack.of(material, Math.max(1, count));
+            throw new IllegalArgumentException("Unknown item: " + reference, notItemBytes);
         }
+    }
+
+    private static boolean isBase64(final @NotNull String s) {
+        if (s.isEmpty()) return false;
+        for (int i = 0; i < s.length(); i++) {
+            final char c = s.charAt(i);
+            if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+                || c == '+' || c == '/' || c == '=')) return false;
+        }
+        return true;
     }
 }

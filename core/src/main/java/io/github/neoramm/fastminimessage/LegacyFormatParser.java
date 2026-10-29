@@ -21,6 +21,7 @@ public final class LegacyFormatParser {
     public static @NotNull String toMiniMessage(final @Nullable String input) {
         if (input == null) return "";
         if (input.isEmpty()) return input;
+        if (input.indexOf('&') == -1) return input;
         final StringBuilder out = new StringBuilder(input.length() + 16);
         final int n = input.length();
         int i = 0;
@@ -35,8 +36,9 @@ public final class LegacyFormatParser {
                         continue;
                     }
                 }
-                if (input.charAt(i + 1) == 'x' && i + 13 < n) {
-                    final StringBuilder hex = new StringBuilder(6);
+                final char nextChar = input.charAt(i + 1);
+                if ((nextChar == 'x' || nextChar == 'X') && i + 13 < n) {
+                    final char[] hex = new char[6];
                     boolean ok = true;
                     for (int k = 0; k < 6; k++) {
                         if (input.charAt(i + 2 + k * 2) != '&') {
@@ -48,7 +50,7 @@ public final class LegacyFormatParser {
                             ok = false;
                             break;
                         }
-                        hex.append(d);
+                        hex[k] = d;
                     }
                     if (ok) {
                         out.append("<reset><#").append(hex).append('>');
@@ -57,14 +59,14 @@ public final class LegacyFormatParser {
                     }
                 }
                 final char code = Character.toLowerCase(input.charAt(i + 1));
-                final int ci = hexValue(code);
                 if (isColorCode(code)) {
-                    out.append("<reset><").append(COLOR_NAMES[ci]).append('>');
+                    out.append("<reset><").append(COLOR_NAMES[hexValue(code)]).append('>');
                     i += 2;
                     continue;
                 }
-                if (code == 'l' || code == 'o' || code == 'n' || code == 'm' || code == 'k') {
-                    out.append('<').append(formatTag(code)).append('>');
+                final String tag = formatTag(code);
+                if (tag != null) {
+                    out.append('<').append(tag).append('>');
                     i += 2;
                     continue;
                 }
@@ -80,11 +82,6 @@ public final class LegacyFormatParser {
                 }
                 out.append(c);
                 i++;
-                continue;
-            }
-            if (c == '&' && i + 1 < n && input.charAt(i + 1) == '&') {
-                out.append('&');
-                i += 2;
                 continue;
             }
             out.append(c);

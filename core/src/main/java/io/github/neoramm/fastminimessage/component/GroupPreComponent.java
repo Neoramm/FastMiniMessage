@@ -29,7 +29,7 @@ public final class GroupPreComponent extends PreComponent {
         }
         final TextComponent.Builder builder = Component.text();
         if (style != null && !style.isEmpty()) builder.style(style);
-        for (final PreComponent child : kids) child.renderInto(pointered, builder, scope);
+        renderChildrenInto(pointered, builder, scope);
         return builder.build();
     }
 
@@ -41,9 +41,7 @@ public final class GroupPreComponent extends PreComponent {
             builder.append(render(pointered, scope));
             return;
         }
-        final PreComponent @Nullable [] kids = children;
-        if (kids == null) return;
-        for (final PreComponent child : kids) child.renderInto(pointered, builder, scope);
+        renderChildrenInto(pointered, builder, scope);
     }
 
     @Override
@@ -53,10 +51,6 @@ public final class GroupPreComponent extends PreComponent {
 
     @Override
     public @NotNull PreComponent deepCopy() {
-        final PreComponent @Nullable [] kids = children;
-        if (kids == null) return new GroupPreComponent(null).setStyle(computedStyle);
-        final PreComponent @NotNull [] copied = new PreComponent[kids.length];
-        for (int i = 0; i < kids.length; i++) copied[i] = kids[i].deepCopy();
-        return new GroupPreComponent(copied).setStyle(computedStyle);
+        return new GroupPreComponent(copyChildren()).setStyle(computedStyle);
     }
 }

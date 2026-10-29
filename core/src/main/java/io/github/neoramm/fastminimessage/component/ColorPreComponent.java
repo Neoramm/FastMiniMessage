@@ -25,10 +25,7 @@ public final class ColorPreComponent extends PreComponent {
         final @Nullable Style style = computedStyle;
         if (style != null && !style.isEmpty()) builder.style(style);
         builder.color(color);
-        final PreComponent @Nullable [] kids = children;
-        if (kids != null) {
-            for (final PreComponent child : kids) child.renderInto(pointered, builder, scope);
-        }
+        renderChildrenInto(pointered, builder, scope);
         return builder.build();
     }
 
@@ -43,10 +40,6 @@ public final class ColorPreComponent extends PreComponent {
 
     @Override
     public @NotNull PreComponent deepCopy() {
-        final PreComponent @Nullable [] kids = children;
-        if (kids == null) return new ColorPreComponent(color, new PreComponent[0]).setStyle(computedStyle);
-        final PreComponent @NotNull [] copied = new PreComponent[kids.length];
-        for (int i = 0; i < kids.length; i++) copied[i] = kids[i].deepCopy();
-        return new ColorPreComponent(color, copied).setStyle(computedStyle);
+        return new ColorPreComponent(color, copyChildren()).setStyle(computedStyle);
     }
 }

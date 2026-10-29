@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 public final class LiteralPreComponent extends PreComponent {
     private @NotNull String text;
-    private @Nullable Component cached;
+    private volatile @Nullable Component cached;
 
     public LiteralPreComponent(final @NotNull String text, final @Nullable Style style) {
         this.text = text;
@@ -19,10 +19,14 @@ public final class LiteralPreComponent extends PreComponent {
 
     @Override
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
-        if (scope.isEmpty() && cached != null) return cached;
-        if (computedStyle.isEmpty()) cached = Component.text(text);
-        else cached = Component.text(text, computedStyle);
-        return cached;
+        final Component current = cached;
+        if (current != null) return current;
+        final Style style = computedStyle;
+        final Component built = (style == null || style.isEmpty())
+            ? Component.text(text)
+            : Component.text(text, style);
+        cached = built;
+        return built;
     }
 
     @Override
@@ -39,12 +43,7 @@ public final class LiteralPreComponent extends PreComponent {
     @Override
     public @NotNull PreComponent deepCopy() {
         final LiteralPreComponent copy = new LiteralPreComponent(text, computedStyle);
-        final PreComponent @Nullable [] kids = children;
-        if (kids != null) {
-            final PreComponent @NotNull [] copied = new PreComponent[kids.length];
-            for (int i = 0; i < kids.length; i++) copied[i] = kids[i].deepCopy();
-            copy.children = copied;
-        }
+        copy.children = copyChildren();
         return copy;
     }
 

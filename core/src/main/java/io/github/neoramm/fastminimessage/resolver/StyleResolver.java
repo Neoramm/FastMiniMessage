@@ -32,9 +32,7 @@ public final class StyleResolver implements ComponentResolver {
         final @Nullable LiteralPreComponent styledLiteral =
             StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);
         if (styledLiteral != null) return styledLiteral;
-        final GroupPreComponent group = new GroupPreComponent(children);
-        group.setStyle(merged);
-        return group;
+        return new GroupPreComponent(children).setStyle(merged);
     }
 
     @Override

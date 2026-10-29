@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "io.github.neoramm"
-version = providers.gradleProperty("version").getOrElse("1.3.0")
+version = providers.gradleProperty("version").getOrElse("1.4.0")
 
 base {
     archivesName.set("fastminimessage-paper")
@@ -41,6 +41,12 @@ tasks.test {
 tasks.withType<JavaCompile>().configureEach {
     options.release = 25
     options.encoding = "UTF-8"
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
 }
 
 mavenPublishing {

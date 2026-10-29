@@ -13,7 +13,7 @@ import org.jetbrains.annotations.UnknownNullability;
  */
 public abstract class PreComponent {
 
-    private static final PreComponent @NotNull [] EMPTY_CHILDREN = new PreComponent[0];
+    public static final PreComponent @NotNull [] EMPTY_CHILDREN = new PreComponent[0];
 
     protected @UnknownNullability PreComponent[] children;
     protected @Nullable Style computedStyle = Style.empty();
@@ -52,10 +52,28 @@ public abstract class PreComponent {
     protected final boolean childrenAreStatic() {
         final PreComponent @Nullable [] kids = children;
         if (kids == null) return true;
-        for (final PreComponent child : kids) {
-            if (!child.isStatic()) return false;
-        }
+        for (final PreComponent child : kids) if (!child.isStatic()) return false;
         return true;
+    }
+
+    protected final void renderChildrenInto(final @Nullable Pointered pointered,
+        final @NotNull TextComponent.Builder builder, final @NotNull RenderScope scope) {
+        final PreComponent @Nullable [] kids = children;
+        if (kids != null) for (final PreComponent child : kids) child.renderInto(pointered, builder, scope);
+    }
+
+    protected final PreComponent @Nullable [] copyChildren() {
+        final PreComponent @Nullable [] kids = children;
+        if (kids == null) return null;
+        if (kids.length == 0) return EMPTY_CHILDREN;
+        final PreComponent @NotNull [] copied = new PreComponent[kids.length];
+        for (int i = 0; i < kids.length; i++) copied[i] = kids[i].deepCopy();
+        return copied;
+    }
+
+    protected final PreComponent @NotNull [] copyNonNullChildren() {
+        final PreComponent @Nullable [] copied = copyChildren();
+        return copied != null ? copied : EMPTY_CHILDREN;
     }
 
     public @NotNull PreComponent setChildren(final @Nullable PreComponent[] children) {

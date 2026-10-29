@@ -4,16 +4,19 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * Immutable parsed arguments of a tag.
  */
-public final class Arguments {
+public final class Arguments implements Iterator<String> {
 
     public static final @NotNull Arguments EMPTY = new Arguments(new String[0]);
 
-    private final String @NotNull [] args;
+    private final @NotNull String[] args;
+    private int index;
 
     private Arguments(final @NotNull String[] args) {
         this.args = args;
@@ -31,11 +34,49 @@ public final class Arguments {
 
     public static @NotNull Arguments parse(final @Nullable String rawArgs, final char delimiter) {
         if (rawArgs == null || rawArgs.isEmpty()) return EMPTY;
+        final int len = rawArgs.length();
+        boolean hasQuotesOrEscapes = false;
+        int delimiterCount = 0;
+        for (int i = 0; i < len; i++) {
+            final char c = rawArgs.charAt(i);
+            if (c == '\'' || c == '"' || c == '\\') {
+                hasQuotesOrEscapes = true;
+                break;
+            }
+            if (c == delimiter) delimiterCount++;
+        }
+        if (!hasQuotesOrEscapes) {
+            if (delimiterCount == 0) return new Arguments(new String[]{rawArgs});
+            final String[] result = new String[delimiterCount + 1];
+            int start = 0;
+            int idx = 0;
+            for (int i = 0; i < len; i++) {
+                if (rawArgs.charAt(i) == delimiter) {
+                    result[idx++] = rawArgs.substring(start, i);
+                    start = i + 1;
+                }
+            }
+            result[idx] = rawArgs.substring(start, len);
+            return new Arguments(result);
+        }
         final List<String> result = new ArrayList<>();
         final StringBuilder current = new StringBuilder();
         char quote = 0;
-        for (int i = 0; i < rawArgs.length(); i++) {
+        for (int i = 0; i < len; i++) {
             final char c = rawArgs.charAt(i);
+            if (c == '\\' && i + 1 < len) {
+                final char next = rawArgs.charAt(i + 1);
+                if (quote != 0 && (next == quote || next == '\\')) {
+                    current.append(next);
+                    i++;
+                    continue;
+                }
+                if (quote == 0 && (next == delimiter || next == '\\' || next == '\'' || next == '"')) {
+                    current.append(next);
+                    i++;
+                    continue;
+                }
+            }
             if (quote == 0 && (c == '\'' || c == '"')) quote = c;
             else if (quote != 0 && c == quote) quote = 0;
             else if (c == delimiter && quote == 0) {
@@ -43,8 +84,8 @@ public final class Arguments {
                 current.setLength(0);
             } else current.append(c);
         }
-        if (!current.isEmpty()) result.add(current.toString());
-        return new Arguments(result.toArray(new String[0]));
+        result.add(current.toString());
+        return new Arguments(result.toArray(String[]::new));
     }
 
     public @Nullable String get(final int index, final @Nullable String defaultValue) {
@@ -53,6 +94,24 @@ public final class Arguments {
 
     public @Nullable String get(final int index) {
         return get(index, null);
+    }
+
+    public @NotNull String getFirst() {
+        if (args.length == 0) throw new NoSuchElementException();
+        return args[0];
+    }
+
+    public @Nullable String getFirst(final @Nullable String defaultValue) {
+        return args.length > 0 ? args[0] : defaultValue;
+    }
+
+    public @NotNull String getLast() {
+        if (args.length == 0) throw new NoSuchElementException();
+        return args[args.length - 1];
+    }
+
+    public @Nullable String getLast(final @Nullable String defaultValue) {
+        return args.length > 0 ? args[args.length - 1] : defaultValue;
     }
 
     public int getInt(final int index, final int defaultValue) {
@@ -81,5 +140,25 @@ public final class Arguments {
 
     public int size() {
         return args.length;
+    }
+
+    @Override
+    public boolean hasNext() {
+        return index < args.length;
+    }
+
+    @Override
+    public String next() {
+        if (!hasNext()) throw new NoSuchElementException();
+        return args[index++];
+    }
+
+    public String nextOr(final @NotNull String def) {
+        return hasNext() ? next() : def;
+    }
+
+    @Override
+    public void remove() {
+        throw new UnsupportedOperationException();
     }
 }

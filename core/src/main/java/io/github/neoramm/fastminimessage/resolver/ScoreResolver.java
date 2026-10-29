@@ -11,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class ScoreResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"score"};
     @Override
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
@@ -18,14 +19,14 @@ public final class ScoreResolver implements ComponentResolver {
         if (args.size() < 2) {
             throw new IllegalArgumentException("A scoreboard member name and an objective name are required");
         }
-        final String member = args.get(0);
+        final String member = args.getFirst();
         final String objective = args.get(1);
-        return new StaticComponentPreComponent(Component.score(member, objective));
+        return new StaticComponentPreComponent(Component.score(member, objective)).setStyle(inheritedStyle);
     }
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"score"};
+        return NAMES;
     }
 
     @Override

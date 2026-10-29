@@ -10,7 +10,6 @@ import net.kyori.adventure.text.TextComponent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.UnaryOperator;
 
@@ -49,23 +48,17 @@ public final class PreComponentTree {
         return root.render(pointered, scope != null ? scope : RenderScope.EMPTY);
     }
 
+    public @NotNull Component render(final @Nullable Pointered pointered, final TagResolver @NotNull ... resolvers) {
+        return root.render(pointered, RenderScope.of(resolvers));
+    }
+
     public @NotNull Component render(final @Nullable Pointered pointered,
         final @NotNull ModifierResolver... modifiers) {
         return root.render(pointered, RenderScope.of(modifiers));
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RuntimeResolver... resolvers) {
-        final List<Placeholder> placeholders = new ArrayList<>();
-        final List<ModifierResolver> modifiers = new ArrayList<>();
-        final List<RuntimeTagResolver> tagResolvers = new ArrayList<>();
-        if (resolvers != null) {
-            for (final RuntimeResolver resolver : resolvers) {
-                if (resolver instanceof final Placeholder placeholder) placeholders.add(placeholder);
-                else if (resolver instanceof final ModifierResolver modifier) modifiers.add(modifier);
-                else if (resolver instanceof final RuntimeTagResolver tagResolver) tagResolvers.add(tagResolver);
-            }
-        }
-        return root.render(pointered, RenderScope.of(placeholders, modifiers, tagResolvers));
+        return root.render(pointered, RenderScope.from(resolvers));
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull PreComponent extra) {
@@ -81,8 +74,8 @@ public final class PreComponentTree {
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered,
-        final @NotNull List<Placeholder> placeholders) {
-        return root.render(pointered, RenderScope.of(placeholders));
+        final @NotNull List<? extends TagResolver> resolvers) {
+        return root.render(pointered, RenderScope.of(resolvers));
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final Placeholder @NotNull ... placeholders) {

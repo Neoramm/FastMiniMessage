@@ -14,10 +14,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
+import static io.github.neoramm.fastminimessage.resolver.ColorResolver.resolveColor;
+
 public final class TransitionResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"transition"};
     @Override
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
@@ -27,8 +29,7 @@ public final class TransitionResolver implements ComponentResolver {
         final List<TextColor> colors = new ArrayList<>(args.size());
         for (int i = 0; i < args.size(); i++) {
             final String raw = args.get(i);
-            TextColor color = TextColor.fromHexString(raw);
-            if (color == null) color = NamedTextColor.NAMES.value(raw);
+            final TextColor color = resolveColor(raw);
             if (color != null) colors.add(color);
             else if (i == args.size() - 1) {
                 try {
@@ -37,18 +38,16 @@ public final class TransitionResolver implements ComponentResolver {
                 } catch (final NumberFormatException e) {
                     throw new IllegalArgumentException("Unable to parse a color from '" + raw + "'");
                 }
-            } else {
-                throw new IllegalArgumentException("Unable to parse a color from '" + raw + "'");
-            }
+            } else throw new IllegalArgumentException("Unable to parse a color from '" + raw + "'");
         }
         if (colors.size() < 2) throw new IllegalArgumentException("Invalid transition, not enough colors.");
-        TextColor @NotNull [] palette = colors.toArray(new TextColor[0]);
+        TextColor @NotNull [] palette = colors.toArray(TextColor[]::new);
         final boolean negative = phase < 0;
         final float position = negative ? 1 + phase : phase;
         if (negative) {
-            final List<TextColor> reversed = new ArrayList<>(colors);
-            Collections.reverse(reversed);
-            palette = reversed.toArray(new TextColor[0]);
+            final TextColor @NotNull [] reversed = new TextColor[palette.length];
+            for (int i = 0; i < palette.length; i++) reversed[i] = palette[palette.length - 1 - i];
+            palette = reversed;
         }
         TextColor result = null;
         final float steps = 1.0f / (palette.length - 1);
@@ -74,11 +73,6 @@ public final class TransitionResolver implements ComponentResolver {
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"transition"};
-    }
-
-    @Override
-    public boolean isSelfClosing() {
-        return true;
+        return NAMES;
     }
 }

@@ -15,5 +15,5 @@ public interface TagScanner {
       * @param input the MiniMessage string to scan
       * @return the root nodes of the scanned tree
       */
-    @NotNull List<TagNode> scan(final @NotNull String input);
+    @NotNull List<@NotNull TagNode> scan(final @NotNull String input);
 }

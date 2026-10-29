@@ -23,10 +23,7 @@ public final class InsertingPreComponent extends PreComponent {
         final @Nullable Style style = computedStyle;
         if (style != null && !style.isEmpty()) builder.style(style);
         builder.insertion(insertion);
-        final PreComponent @Nullable [] kids = children;
-        if (kids != null) {
-            for (final PreComponent child : kids) child.renderInto(pointered, builder, scope);
-        }
+        renderChildrenInto(pointered, builder, scope);
         return builder.build();
     }
 
@@ -41,10 +38,6 @@ public final class InsertingPreComponent extends PreComponent {
 
     @Override
     public @NotNull PreComponent deepCopy() {
-        final PreComponent @Nullable [] kids = children;
-        if (kids == null) return new InsertingPreComponent(insertion, null).setStyle(computedStyle);
-        final PreComponent @NotNull [] copied = new PreComponent[kids.length];
-        for (int i = 0; i < kids.length; i++) copied[i] = kids[i].deepCopy();
-        return new InsertingPreComponent(insertion, copied).setStyle(computedStyle);
+        return new InsertingPreComponent(insertion, copyChildren()).setStyle(computedStyle);
     }
 }

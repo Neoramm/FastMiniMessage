@@ -13,25 +13,27 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class SpriteResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"sprite"};
     @Override
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        final String firstArg = args.get(0);
+        final String firstArg = args.getFirst(null);
         final String secondArg = args.get(1);
         if (firstArg == null || firstArg.isBlank()) {
             throw new IllegalArgumentException(
                 "<sprite> needs a sprite or an atlas and a sprite, for example <sprite:items:item/diamond_pickaxe>");
         }
-        if (secondArg == null) {
-            return new InlinePreComponent(Component.object(ObjectContents.sprite(Key.key(firstArg))));
-        }
-        return new InlinePreComponent(Component.object(ObjectContents.sprite(Key.key(firstArg), Key.key(secondArg))));
+        final Key sprite = Key.key(firstArg);
+        final Component comp = secondArg == null
+            ? Component.object(ObjectContents.sprite(sprite))
+            : Component.object(ObjectContents.sprite(sprite, Key.key(secondArg)));
+        return new InlinePreComponent(comp).setStyle(inheritedStyle);
     }
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"sprite"};
+        return NAMES;
     }
 
     @Override

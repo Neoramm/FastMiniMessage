@@ -11,6 +11,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 
 final class PapiResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"papi"};
 
     private final @NotNull PapiRenderer renderer;
 
@@ -22,7 +23,7 @@ final class PapiResolver implements ComponentResolver {
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        final String expression = Objects.requireNonNullElse(args.get(0, ""), "");
+        final String expression = Objects.requireNonNullElse(args.getFirst(""), "");
         if (expression.isEmpty()) throw new IllegalArgumentException("papi requires an expression");
         return new PapiPreComponent(renderer, expression, inheritedStyle);
     }
@@ -34,6 +35,6 @@ final class PapiResolver implements ComponentResolver {
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"papi"};
+        return NAMES;
     }
 }

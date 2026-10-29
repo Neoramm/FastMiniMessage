@@ -18,7 +18,8 @@ for it. Adventure remains the underlying model (`Component`, `Style`, `TextColor
 - All standard MiniMessage tags: colors, decorations, click/hover/insert/shadow, gradients
   (including nested), rainbow, pride, keybinds, translatables, sprites, heads, newlines,
   font, transition, selector, score, nbt, reset, and unknown-tag fallbacks.
-- Dynamic placeholders and runtime `ComponentModifier`s for context-dependent rendering.
+- Unified runtime `TagResolver` architecture: seamless handling of unclosed tags (`<prefix> <player>`),
+  dynamic placeholders (`TagResolver.inserting`), modifiers (`TagResolver.modifying`), and argument-based tags.
 - Optional bridge for MiniMessage `Placeholder` and `TagResolver` instances, with an
   optional delegation mode that uses a `MiniMessage` instance for argument-based and
   `Modifying` tags.
@@ -72,21 +73,46 @@ MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefa
 PreComponentTree tree = compiler.compile("<red>Hello <bold>world</bold></red>");
 Component rendered = tree.render(player);   // Pointered context
 
-// Dynamic placeholders.
-Component withPlaceholder = tree.render(player, Placeholder.ofUnparsed("p", "X"));
+// Unified runtime TagResolvers (convenient unclosed tags in templates)
+PreComponentTree chat = compiler.compile("<prefix> <player>: <message>");
+Component message = chat.render(player,
+    TagResolver.resolver("prefix", Component.text("[Admin]", NamedTextColor.RED)),
+    TagResolver.resolver("player", player.getName()),
+    TagResolver.resolver("message", "Hello everyone!")
+);
 
-// Placeholders can also appear inside tag arguments.
-PreComponentTree colored = compiler.compile("<color:<c>>hello</color>");
-Component red = colored.render(player, Placeholder.ofUnparsed("c", "red"));
+// Dynamic tags with arguments
+PreComponentTree badges = compiler.compile("<badge:vip:gold> <player> joined");
+Component badged = badges.render(player,
+    TagResolver.dynamic("badge", (args, ctx) ->
+        Component.text("[" + args.getFirst().toUpperCase() + "] ", NamedTextColor.GOLD)),
+    TagResolver.resolver("player", "Alice")
+);
 
-// Parsed placeholder keeps its own style.
-PreComponentTree bolded = compiler.compile("<bold><p></bold>");
-Component blue = bolded.render(player, Placeholder.ofParsed("p", Component.text("X", NamedTextColor.BLUE)));
-
-// Runtime modifier.
-compiler.registerModifier("shout", ComponentModifiers.uppercase());
-Component shouted = compiler.compile("<shout>hello</shout>").render(player); // "HELLO"
+// Runtime modifiers (can wrap unclosed blocks or explicitly closed blocks)
+PreComponentTree announcement = compiler.compile("<shout>alert: <player> connected");
+Component shouted = announcement.render(player,
+    TagResolver.modifying("shout", ComponentModifiers.uppercase()),
+    TagResolver.resolver("player", "Bob")
+); // "ALERT: BOB CONNECTED"
 ```
+
+## Unified runtime tag resolvers
+
+FastMiniMessage provides a unified `TagResolver` interface that combines:
+1. **Inserting tags** (`TagResolver.inserting`, `TagResolver.resolver`, `Placeholder`): Inserts a string or component.
+2. **Modifying tags** (`TagResolver.modifying`, `ModifierResolver`, `ComponentModifier`): Transforms wrapped or following child components at render time.
+3. **Dynamic argument tags** (`TagResolver.dynamic`): Reads arguments at render time (`<tag:arg1:arg2>`) and returns a component based on arguments and viewer context.
+
+### Real-world unclosed tags
+
+In real Minecraft server templates, users frequently omit closing tags for convenience:
+`<prefix> Welcome <player>!` or `<shout>alerta para todos`.
+
+FastMiniMessage compiles templates into an optimized precomponent tree. When an unclosed tag is encountered:
+- If resolved as an **inserting tag** (placeholder), it renders its value and seamlessly forwards all following text and siblings into the output without requiring `<player/>` or `</player>`.
+- If resolved as a **modifying tag**, it applies its transformation to the scope.
+- Enclosing styles (colors, decorations) naturally propagate to unclosed tags and following text, matching MiniMessage semantics.
 
 ## MiniMessage placeholders and tag resolvers
 

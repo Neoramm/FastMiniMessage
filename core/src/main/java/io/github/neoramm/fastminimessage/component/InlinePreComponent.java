@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 public final class InlinePreComponent extends PreComponent {
     private final @NotNull Component component;
-    private @Nullable Component styled;
+    private volatile @Nullable Component styled;
 
     public InlinePreComponent(final @NotNull Component component) {
         this.component = component;

@@ -6,6 +6,7 @@ import net.kyori.adventure.text.format.ShadowColor;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,65 +37,74 @@ public final class StyleFlattener {
 
     private static void normalizeInto(final @NotNull PreComponent node, final @NotNull Style inherited,
         final @NotNull List<PreComponent> out) {
-        if (node instanceof LiteralPreComponent literal) {
+        if (node instanceof final LiteralPreComponent literal) {
             appendLiteral(literal, merge(inherited, literal.getComputedStyle()), out);
             return;
         }
-        if (node instanceof GroupPreComponent group) {
+        if (node instanceof final GroupPreComponent group) {
             final Style childStyle = merge(inherited, group.getComputedStyle());
             for (final PreComponent child : group.getChildren()) normalizeInto(child, childStyle, out);
             return;
         }
-        if (node instanceof ColorPreComponent color) {
+        if (node instanceof final ColorPreComponent color) {
             final Style childStyle = merge(inherited, color.getComputedStyle());
             final TextColor colorValue = color.getColor();
             final Style colored = colorValue != null ? childStyle.color(colorValue) : childStyle;
             for (final PreComponent child : color.getChildren()) normalizeInto(child, colored, out);
             return;
         }
-        if (node instanceof ClickPreComponent click) {
+        if (node instanceof final ClickPreComponent click) {
             final Style base = merge(inherited, click.getComputedStyle());
             final ClickEvent event = click.getEvent();
             final Style childStyle = event != null ? base.clickEvent(event) : base;
             for (final PreComponent child : click.getChildren()) normalizeInto(child, childStyle, out);
             return;
         }
-        if (node instanceof InsertingPreComponent insert) {
+        if (node instanceof final InsertingPreComponent insert) {
             final Style base = merge(inherited, insert.getComputedStyle());
             final String insertion = insert.getInsertion();
             final Style childStyle = insertion != null ? base.insertion(insertion) : base;
             for (final PreComponent child : insert.getChildren()) normalizeInto(child, childStyle, out);
             return;
         }
-        if (node instanceof ShadowPreComponent shadow) {
+        if (node instanceof final ShadowPreComponent shadow) {
             final Style base = merge(inherited, shadow.getComputedStyle());
             final ShadowColor color = shadow.getShadowColor();
             final Style childStyle = color != null ? base.shadowColor(color) : base;
             for (final PreComponent child : shadow.getChildren()) normalizeInto(child, childStyle, out);
             return;
         }
-        if (node instanceof GradientPreComponent gradient) {
+        if (node instanceof final GradientPreComponent gradient) {
             gradient.setStyle(merge(inherited, gradient.getComputedStyle()));
             gradient.setChildren(normalizeChildren(gradient.getChildren(), Style.empty()));
             out.add(gradient);
             return;
         }
-        if (node instanceof HoverPreComponent hover) {
+        if (node instanceof final HoverPreComponent hover) {
             hover.setStyle(merge(inherited, hover.getComputedStyle()));
             hover.setChildren(normalizeChildren(hover.getChildren(), Style.empty()));
             out.add(hover);
             return;
         }
-        if (node instanceof ModifiedPreComponent modified) {
+        if (node instanceof final ModifiedPreComponent modified) {
             modified.setStyle(merge(inherited, modified.getComputedStyle()));
             modified.setChildren(normalizeChildren(modified.getChildren(), Style.empty()));
             out.add(modified);
             return;
         }
+        if (node instanceof final DeferredTagPreComponent deferred) {
+            final Style style = merge(inherited, deferred.getComputedStyle());
+            deferred.setStyle(style);
+            final PreComponent @Nullable [] kids = deferred.getChildren();
+            if (kids != null && kids.length > 0) {
+                final Style childInherited = deferred.isExplicitlyClosed() ? Style.empty() : style;
+                deferred.setChildren(normalizeChildren(kids, childInherited));
+            }
+            out.add(deferred);
+            return;
+        }
         final Style style = merge(inherited, node.getComputedStyle());
-        if (node instanceof InlinePreComponent || node instanceof UnparsedPreComponent
-            || node instanceof KeybindPreComponent || node instanceof TranslatablePreComponent
-            || node instanceof StaticComponentPreComponent) {
+        if (isDirectStyleLeaf(node)) {
             node.setStyle(style);
             out.add(node);
             return;
@@ -104,6 +114,16 @@ public final class StyleFlattener {
             return;
         }
         out.add(new GroupPreComponent(new PreComponent[]{node}).setStyle(style));
+    }
+
+    private static boolean isDirectStyleLeaf(final @NotNull PreComponent node) {
+        return node instanceof InlinePreComponent
+            || node instanceof KeybindPreComponent
+            || node instanceof TranslatablePreComponent
+            || node instanceof StaticComponentPreComponent
+            || node instanceof SelectorPreComponent
+            || node instanceof NbtPreComponent
+            || "PapiPreComponent".equals(node.getClass().getSimpleName());
     }
 
     private static @NotNull Style merge(final @NotNull Style inherited, final @NotNull Style own) {
@@ -121,7 +141,7 @@ public final class StyleFlattener {
 
     private static void appendLiteral(final @NotNull LiteralPreComponent literal, final @NotNull Style style,
         final @NotNull List<PreComponent> out) {
-        if (!out.isEmpty() && out.getLast() instanceof LiteralPreComponent previous
+        if (!out.isEmpty() && out.getLast() instanceof final LiteralPreComponent previous
             && previous.getChildren().length == 0 && literal.getChildren().length == 0
             && previous.getComputedStyle().equals(style)) {
             previous.setText(previous.getText() + literal.getText());

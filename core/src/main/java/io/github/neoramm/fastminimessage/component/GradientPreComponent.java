@@ -26,7 +26,7 @@ public final class GradientPreComponent extends PreComponent {
     private final float phase;
     private final boolean rainbow;
     private final boolean reversed;
-    private @Nullable Component cached;
+    private volatile @Nullable Component cached;
     private volatile @Nullable StyleCache styleCache;
 
     public GradientPreComponent(final TextColor @NotNull [] colors, final float phase,
@@ -36,8 +36,15 @@ public final class GradientPreComponent extends PreComponent {
 
     public GradientPreComponent(final TextColor @NotNull [] colors, final float phase, final boolean rainbow,
         final boolean reversed, final PreComponent @Nullable [] children) {
-        this.colors = Objects.requireNonNull(colors, "colors").clone();
-        this.phase = phase;
+        Objects.requireNonNull(colors, "colors");
+        if (!rainbow && phase < 0.0f) {
+            this.phase = 1.0f + phase;
+            this.colors = new TextColor[colors.length];
+            for (int i = 0; i < colors.length; i++) this.colors[i] = colors[colors.length - 1 - i];
+        } else {
+            this.phase = phase;
+            this.colors = colors.clone();
+        }
         this.rainbow = rainbow;
         this.reversed = reversed;
         this.children = children;
@@ -174,7 +181,7 @@ public final class GradientPreComponent extends PreComponent {
                 charIndex += Character.charCount(codePoint);
                 result.append(keepChildColor
                     ? Component.text(charString(codePoint), base)
-                    : Component.text(charString(codePoint), base.color(interpolate(positionFor(next, totalLength)))));
+                    : Component.text(charString(codePoint), base.color(colorAt(next, totalLength))));
                 next++;
             }
         }
@@ -186,7 +193,7 @@ public final class GradientPreComponent extends PreComponent {
         final boolean keepChildColor = component.style().color() != null;
         Component toAppend = component;
         if (!computed.isEmpty()) toAppend = toAppend.style(merge(computed, toAppend.style()));
-        if (!keepChildColor) toAppend = toAppend.colorIfAbsent(interpolate(positionFor(index, totalLength)));
+        if (!keepChildColor) toAppend = toAppend.colorIfAbsent(colorAt(index, totalLength));
         result.append(toAppend);
         return index + 1;
     }
@@ -223,29 +230,30 @@ public final class GradientPreComponent extends PreComponent {
         final @Nullable StyleCache cache = styleCache;
         if (cache != null && cache.length() == length && cache.base().equals(base)) return cache.styles();
         final Style @NotNull [] styles = new Style[length];
-        for (int i = 0; i < length; i++) styles[i] = base.color(interpolate(positionFor(i, length)));
+        for (int i = 0; i < length; i++) styles[i] = base.color(colorAt(i, length));
         final StyleCache updated = new StyleCache(base, length, styles);
         styleCache = updated;
         return updated.styles();
     }
 
-    private float positionFor(final int index, final int length) {
+    private @NotNull TextColor colorAt(final int index, final int length) {
         if (rainbow) {
             final int effective = reversed ? length - 1 - index : index;
             float hue = (float) effective / length + phase;
             hue %= 1.0f;
             if (hue < 0.0f) hue += 1.0f;
-            return hue;
+            return TextColor.color(HSVLike.hsvLike(hue, 1.0f, 1.0f));
         }
-        return adjustedPosition(index, Math.max(1, length - 1));
-    }
-
-    private float adjustedPosition(final int index, final float denominator) {
-        final float position = index / denominator;
-        float adjusted = (position + phase) % 1.0f;
-        if (adjusted < 0) adjusted += 1.0f;
-        if (adjusted == 0.0f && (position + phase) > 0.0f) adjusted = 1.0f;
-        return adjusted;
+        if (colors.length == 1) return colors[0];
+        final double multiplier = length <= 1 ? 0.0 : (double) (colors.length - 1) / (length - 1);
+        final double scaledPhase = phase * (colors.length - 1);
+        final double position = (index * multiplier) + scaledPhase;
+        final int lowUnclamped = (int) Math.floor(position);
+        final int low = ((lowUnclamped % colors.length) + colors.length) % colors.length;
+        final int highUnclamped = (int) Math.ceil(position);
+        final int high = ((highUnclamped % colors.length) + colors.length) % colors.length;
+        final float fraction = (float) position - lowUnclamped;
+        return TextColor.lerp(fraction, colors[low], colors[high]);
     }
 
     private @NotNull Style requireStyle() {
@@ -279,25 +287,9 @@ public final class GradientPreComponent extends PreComponent {
         return text.content().codePointCount(0, text.content().length());
     }
 
-    private @NotNull TextColor interpolate(final float position) {
-        if (rainbow) return TextColor.color(HSVLike.hsvLike(position, 1.0f, 1.0f));
-        if (colors.length == 1) return colors[0];
-        final float scaled = position * (colors.length - 1);
-        int index = (int) scaled;
-        if (index >= colors.length - 1) return colors[colors.length - 1];
-        final float local = scaled - index;
-        return TextColor.lerp(local, colors[index], colors[index + 1]);
-    }
-
     @Override
     public @NotNull PreComponent deepCopy() {
-        final PreComponent @Nullable [] kids = children;
-        if (kids == null) {
-            return new GradientPreComponent(colors, phase, rainbow, reversed, null).setStyle(computedStyle);
-        }
-        final PreComponent @NotNull [] copied = new PreComponent[kids.length];
-        for (int i = 0; i < kids.length; i++) copied[i] = kids[i].deepCopy();
-        return new GradientPreComponent(colors, phase, rainbow, reversed, copied).setStyle(computedStyle);
+        return new GradientPreComponent(colors, phase, rainbow, reversed, copyChildren()).setStyle(computedStyle);
     }
 
     private record StyleCache(@NotNull Style base, int length, Style @NotNull [] styles) {

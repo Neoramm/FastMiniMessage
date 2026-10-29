@@ -14,6 +14,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class FontResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"font"};
     @Override
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
@@ -21,25 +22,23 @@ public final class FontResolver implements ComponentResolver {
         if (args.isEmpty()) {
             throw new IllegalArgumentException(
                 "A font tag must have either arguments of either <value> or <namespace:value>");
-        }        final Key font;
+        }
+        final Key font;
         try {
-            if (args.size() == 1) {
-                font = Key.key(args.get(0));
-            } else {
-                font = Key.key(args.get(0), args.get(1));
-            }
+            font = args.size() == 1 ? Key.key(args.getFirst()) : Key.key(args.getFirst(), args.get(1));
         } catch (final InvalidKeyException ex) {
             throw new IllegalArgumentException(ex.getMessage(), ex);
         }
         final Style own = Style.style().font(font).build();
+        final Style mergedStyle = StyleInheritance.compute(own, inheritedStyle);
         final @Nullable LiteralPreComponent merged =
             StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);
         if (merged != null) return merged;
-        return new GroupPreComponent(children).setStyle(own);
+        return new GroupPreComponent(children).setStyle(mergedStyle);
     }
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"font"};
+        return NAMES;
     }
 }

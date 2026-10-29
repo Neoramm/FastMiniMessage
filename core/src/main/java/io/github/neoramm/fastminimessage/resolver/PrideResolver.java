@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Map;
 
 public final class PrideResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"pride"};
 
     private static final @NotNull String PRIDE = "pride";
     private static final @NotNull Map<@NotNull String, TextColor @NotNull []> FLAGS;
@@ -52,11 +53,11 @@ public final class PrideResolver implements ComponentResolver {
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        double phase = 0.0f;
+        float phase = 0.0f;
         String flag = PRIDE;
 
         if (!args.isEmpty()) {
-            final String value = args.get(0, "").toLowerCase();
+            final String value = args.getFirst("").toLowerCase();
             if (FLAGS.containsKey(value)) {
                 flag = value;
                 if (args.size() > 1) phase = parsePhase(args.get(1, "0"));
@@ -69,16 +70,14 @@ public final class PrideResolver implements ComponentResolver {
             }
         }
 
-        TextColor @Nullable [] colors = FLAGS.get(flag);
-        if (colors == null) colors = FLAGS.get(PRIDE);
-
-        return new GradientPreComponent(colors, (float) phase, children);
+        final TextColor @NotNull [] colors = FLAGS.getOrDefault(flag, FLAGS.get(PRIDE));
+        return new GradientPreComponent(colors, phase, children);
     }
 
-    private double parsePhase(final @NotNull String raw) {
+    private float parsePhase(final @NotNull String raw) {
         try {
-            final double phase = Double.parseDouble(raw);
-            if (phase < -1.0d || phase > 1.0d) return 0.0f;
+            final float phase = Float.parseFloat(raw);
+            if (phase < -1.0f || phase > 1.0f) return 0.0f;
             return phase;
         } catch (final NumberFormatException e) {
             return 0.0f;
@@ -93,6 +92,6 @@ public final class PrideResolver implements ComponentResolver {
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"pride"};
+        return NAMES;
     }
 }

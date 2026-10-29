@@ -13,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class NbtResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"nbt", "data"};
     private static final @NotNull String BLOCK = "block";
     private static final @NotNull String ENTITY = "entity";
     private static final @NotNull String STORAGE = "storage";
@@ -23,7 +24,7 @@ public final class NbtResolver implements ComponentResolver {
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
         if (args.isEmpty()) throw new IllegalArgumentException("a type of block, entity, or storage is required");
-        final String type = args.get(0).toLowerCase();
+        final String type = args.getFirst().toLowerCase();
         @Nullable BlockNBTComponent.Pos pos = null;
         @Nullable String selector = null;
         @Nullable Key storage = null;
@@ -61,16 +62,17 @@ public final class NbtResolver implements ComponentResolver {
                 if (args.size() > idx && INTERPRET.equalsIgnoreCase(args.get(idx))) interpret = true;
             }
         }
-        return switch (type) {
+        final NbtPreComponent preComponent = switch (type) {
             case BLOCK -> NbtPreComponent.block(pos, nbtPath, interpret, separator);
             case ENTITY -> NbtPreComponent.entity(selector, nbtPath, interpret, separator);
             default -> NbtPreComponent.storage(storage, nbtPath, interpret, separator);
         };
+        return preComponent.setStyle(inheritedStyle);
     }
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"nbt", "data"};
+        return NAMES;
     }
 
     @Override

@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 public final class KeybindPreComponent extends PreComponent {
     private final @NotNull String keybind;
+    private @Nullable Component cachedComponent;
 
     public KeybindPreComponent(final @NotNull String keybind, final @Nullable Style style) {
         this.keybind = keybind;
@@ -18,7 +19,19 @@ public final class KeybindPreComponent extends PreComponent {
 
     @Override
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
-        return Component.keybind(keybind, computedStyle);
+        final @Nullable Component cached = this.cachedComponent;
+        if (cached != null) return cached;
+        final @NotNull Component rendered =
+            Component.keybind(keybind, computedStyle != null ? computedStyle : Style.empty());
+        this.cachedComponent = rendered;
+        return rendered;
+    }
+
+    @Override
+    public @NotNull PreComponent setStyle(final @Nullable Style style) {
+        super.setStyle(style);
+        this.cachedComponent = null;
+        return this;
     }
 
     @Override

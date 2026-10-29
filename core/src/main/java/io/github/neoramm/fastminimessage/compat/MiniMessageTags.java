@@ -125,9 +125,7 @@ public final class MiniMessageTags {
         @Override
         public boolean has(final @NotNull String name) {
             final String lookupName = normalize(name);
-            for (final TagResolver resolver : resolvers) {
-                if (resolver.has(lookupName)) return true;
-            }
+            for (final TagResolver resolver : resolvers) if (resolver.has(lookupName)) return true;
             return false;
         }
 
@@ -213,14 +211,17 @@ public final class MiniMessageTags {
             return null;
         }
 
-        private @NotNull PreComponentTree parsed(final @NotNull MiniMessageCompiler compiler, final @NotNull String value) {
+        private @NotNull PreComponentTree parsed(final @NotNull MiniMessageCompiler compiler,
+            final @NotNull String value) {
             final CacheKey key = new CacheKey(compiler, value);
-            PreComponentTree cached = parsedCache.get(key);
-            if (cached == null) {
-                cached = compiler.compile(value);
-                parsedCache.put(key, cached);
+            synchronized (parsedCache) {
+                PreComponentTree cached = parsedCache.get(key);
+                if (cached == null) {
+                    cached = compiler.compile(value);
+                    parsedCache.put(key, cached);
+                }
+                return cached;
             }
-            return cached;
         }
     }
 
@@ -247,7 +248,8 @@ public final class MiniMessageTags {
     }
 
     private static @NotNull Component appendChildren(final @NotNull Component base,
-        final PreComponent @NotNull [] children, final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
+        final PreComponent @NotNull [] children, final @Nullable Pointered pointered,
+        final @NotNull RenderScope scope) {
         if (children.length == 0) return base;
         final List<Component> combined = new ArrayList<>(base.children().size() + children.length);
         combined.addAll(base.children());

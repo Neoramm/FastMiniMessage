@@ -11,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class RainbowResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"rainbow"};
     private static final TextColor @NotNull [] NO_COLORS = new TextColor[0];
 
     @Override
@@ -20,7 +21,7 @@ public final class RainbowResolver implements ComponentResolver {
         boolean reversed = false;
         float phase = 0.0f;
         if (!args.isEmpty()) {
-            String value = args.get(0, "");
+            String value = args.getFirst("");
             if (value.startsWith("!")) {
                 reversed = true;
                 value = value.substring(1);
@@ -38,6 +39,6 @@ public final class RainbowResolver implements ComponentResolver {
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"rainbow"};
+        return NAMES;
     }
 }

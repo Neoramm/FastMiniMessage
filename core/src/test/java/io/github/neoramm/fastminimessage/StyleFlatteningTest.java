@@ -149,12 +149,14 @@ final class StyleFlatteningTest {
         final PreComponentTree tree =
             new MiniMessageCompiler(registry).compile("<bold><red><dyn/></red></bold>");
         final List<PreComponent> nodes = nodesOf(tree);
-        final GroupPreComponent wrapper = nodes.stream()
-            .filter(node -> node instanceof GroupPreComponent)
-            .map(GroupPreComponent.class::cast)
-            .filter(group -> !group.getComputedStyle().isEmpty())
-            .findFirst()
-            .orElseThrow();
+        GroupPreComponent wrapper = null;
+        for (final PreComponent node : nodes) {
+            if (node instanceof final GroupPreComponent group && !group.getComputedStyle().isEmpty()) {
+                wrapper = group;
+                break;
+            }
+        }
+        assertNotNull(wrapper);
         assertEquals(NamedTextColor.RED, wrapper.getComputedStyle().color());
         assertEquals(TextDecoration.State.TRUE,
             wrapper.getComputedStyle().decoration(TextDecoration.BOLD));

@@ -18,7 +18,7 @@ public interface ComponentModifier {
       * @param context the rendering context
       * @return the modified component
       */
-    Component modify(final @NotNull Component rendered, final @Nullable Pointered context);
+    @NotNull Component modify(final @NotNull Component rendered, final @Nullable Pointered context);
 
     /**
       * Whether the modification is independent of the rendering context.
@@ -27,7 +27,7 @@ public interface ComponentModifier {
         return false;
     }
 
-    static ModifierResolver of(final @NotNull String name, final @NotNull ComponentModifier modifier) {
+    static @NotNull ModifierResolver of(final @NotNull String name, final @NotNull ComponentModifier modifier) {
         return new ModifierResolver(name, modifier);
     }
 }

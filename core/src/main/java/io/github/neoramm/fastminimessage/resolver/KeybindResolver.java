@@ -10,11 +10,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class KeybindResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"key"};
     @Override
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        final String keybind = args.get(0, "key.jump");
+        final String keybind = args.getFirst("key.jump");
         return new KeybindPreComponent(keybind, inheritedStyle);
     }
 
@@ -24,6 +25,6 @@ public final class KeybindResolver implements ComponentResolver {
     }
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"key"};
+        return NAMES;
     }
 }

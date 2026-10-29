@@ -16,6 +16,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 
 final class InlineDialogResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"show_dialog"};
 
     private final @NotNull DialogFactory factory;
 
@@ -28,12 +29,12 @@ final class InlineDialogResolver implements ComponentResolver {
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
         if (children.length == 0) return new LiteralPreComponent("", inheritedStyle);
-        final Component title = render(compiler, Objects.requireNonNullElse(args.get(0, "Dialog"), "Dialog"));
+        final Component title = render(compiler, Objects.requireNonNullElse(args.getFirst("Dialog"), "Dialog"));
         final String bodyRaw = Objects.requireNonNullElse(args.get(1, ""), "");
         final @Nullable Component body = bodyRaw.isEmpty() ? null : render(compiler, bodyRaw);
         final Component button = render(compiler, Objects.requireNonNullElse(args.get(2, "OK"), "OK"));
         final DialogLike dialog = factory.create(new InlineDialog(title, body, button));
-        return new ClickPreComponent(ClickEvent.showDialog(dialog), children);
+        return new ClickPreComponent<>(ClickEvent.showDialog(dialog), children).setStyle(inheritedStyle);
     }
 
     private static @NotNull Component render(final @NotNull MiniMessageCompiler compiler, final @NotNull String input) {
@@ -42,6 +43,6 @@ final class InlineDialogResolver implements ComponentResolver {
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"show_dialog"};
+        return NAMES;
     }
 }

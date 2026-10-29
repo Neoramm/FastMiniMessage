@@ -22,10 +22,10 @@ public interface ComponentResolver {
       * @param compiler the compiler driving the resolution
       * @return the resolved component
       */
-    PreComponent resolve(
+    @NotNull PreComponent resolve(
         final @NotNull String name,
         final @NotNull Arguments args,
-        final @NotNull PreComponent[] children,
+        final PreComponent @NotNull [] children,
         final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler
     );
@@ -33,7 +33,7 @@ public interface ComponentResolver {
     /**
       * Returns every tag name handled by this resolver.
       */
-    @NotNull String[] names();
+    @NotNull String @NotNull [] names();
 
     /**
       * Relative priority used when two resolvers claim the same name.

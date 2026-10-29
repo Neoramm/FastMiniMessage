@@ -11,20 +11,21 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class SelectorResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"selector", "sel"};
     @Override
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
         if (args.isEmpty()) throw new IllegalArgumentException("A selection key is required");
-        final String key = args.get(0);
+        final String key = args.getFirst();
         final @Nullable PreComponentTree separator =
             args.size() > 1 && args.get(1) != null ? compiler.compile(args.get(1)) : null;
-        return new SelectorPreComponent(key, separator);
+        return new SelectorPreComponent(key, separator).setStyle(inheritedStyle);
     }
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"selector", "sel"};
+        return NAMES;
     }
 
     @Override

@@ -9,33 +9,55 @@ import java.util.List;
 
 public final class RenderScope {
 
-    public static final @NotNull RenderScope EMPTY = new RenderScope(null, null, null);
+    public static final @NotNull RenderScope EMPTY = new RenderScope(null);
 
-    private final Placeholder @Nullable [] placeholders;
-    private final ModifierResolver @Nullable [] modifiers;
-    private final RuntimeTagResolver @Nullable [] tagResolvers;
+    private final TagResolver @Nullable [] resolvers;
 
-    private RenderScope(final Placeholder @Nullable [] placeholders, final ModifierResolver @Nullable [] modifiers,
-        final RuntimeTagResolver @Nullable [] tagResolvers) {
-        this.placeholders = placeholders;
-        this.modifiers = modifiers;
-        this.tagResolvers = tagResolvers;
+    private RenderScope(final TagResolver @Nullable [] resolvers) {
+        this.resolvers = resolvers;
+    }
+
+    public static @NotNull RenderScope from(final @Nullable RuntimeResolver... resolvers) {
+        if (resolvers == null || resolvers.length == 0) return EMPTY;
+        int nonNullCount = 0;
+        for (final RuntimeResolver r : resolvers) if (r != null) nonNullCount++;
+        if (nonNullCount == 0) return EMPTY;
+        final TagResolver @NotNull [] arr = new TagResolver[nonNullCount];
+        int idx = 0;
+        for (final RuntimeResolver r : resolvers) {
+            if (r == null) continue;
+            if (r instanceof final TagResolver tr) arr[idx++] = tr;
+            else if (r instanceof final RuntimeTagResolver rtr) arr[idx++] = TagResolver.custom(rtr);
+            else throw new IllegalArgumentException("Unknown resolver: " + r);
+        }
+        return new RenderScope(arr);
+    }
+
+    public static @NotNull RenderScope of(final TagResolver @Nullable ... resolvers) {
+        if (resolvers == null || resolvers.length == 0) return EMPTY;
+        return new RenderScope(resolvers);
+    }
+
+    public static @NotNull RenderScope of(final @Nullable List<? extends TagResolver> resolvers) {
+        if (resolvers == null || resolvers.isEmpty()) return EMPTY;
+        return new RenderScope(resolvers.toArray(TagResolver[]::new));
     }
 
     public static @NotNull RenderScope of(final Placeholder @Nullable ... placeholders) {
-        return of(placeholders, null, null);
-    }
-
-    public static @NotNull RenderScope of(final @Nullable List<Placeholder> placeholders) {
-        return of(placeholders == null ? null : placeholders.toArray(Placeholder[]::new), null, null);
+        if (placeholders == null || placeholders.length == 0) return EMPTY;
+        return new RenderScope(placeholders);
     }
 
     public static @NotNull RenderScope of(final ModifierResolver @Nullable ... modifiers) {
-        return of(null, modifiers, null);
+        if (modifiers == null || modifiers.length == 0) return EMPTY;
+        return new RenderScope(modifiers);
     }
 
     public static @NotNull RenderScope ofTags(final RuntimeTagResolver @Nullable ... tagResolvers) {
-        return of(null, null, tagResolvers);
+        if (tagResolvers == null || tagResolvers.length == 0) return EMPTY;
+        final TagResolver @NotNull [] arr = new TagResolver[tagResolvers.length];
+        for (int i = 0; i < tagResolvers.length; i++) arr[i] = TagResolver.custom(tagResolvers[i]);
+        return new RenderScope(arr);
     }
 
     public static @NotNull RenderScope of(final Placeholder @Nullable [] placeholders,
@@ -45,12 +67,17 @@ public final class RenderScope {
 
     public static @NotNull RenderScope of(final Placeholder @Nullable [] placeholders,
         final ModifierResolver @Nullable [] modifiers, final RuntimeTagResolver @Nullable [] tagResolvers) {
-        if (isEmpty(placeholders, modifiers, tagResolvers)) return EMPTY;
-        return new RenderScope(
-            placeholders == null || placeholders.length == 0 ? null : placeholders.clone(),
-            modifiers == null || modifiers.length == 0 ? null : modifiers.clone(),
-            tagResolvers == null || tagResolvers.length == 0 ? null : tagResolvers.clone()
-        );
+        final int pLen = placeholders != null ? placeholders.length : 0;
+        final int mLen = modifiers != null ? modifiers.length : 0;
+        final int tLen = tagResolvers != null ? tagResolvers.length : 0;
+        final int total = pLen + mLen + tLen;
+        if (total == 0) return EMPTY;
+        final TagResolver @NotNull [] arr = new TagResolver[total];
+        int idx = 0;
+        if (pLen > 0) for (final Placeholder p : placeholders) arr[idx++] = p;
+        if (mLen > 0) for (final ModifierResolver m : modifiers) arr[idx++] = m;
+        if (tLen > 0) for (final RuntimeTagResolver t : tagResolvers) arr[idx++] = TagResolver.custom(t);
+        return new RenderScope(arr);
     }
 
     public static @NotNull RenderScope of(final @Nullable List<Placeholder> placeholders,
@@ -60,44 +87,44 @@ public final class RenderScope {
 
     public static @NotNull RenderScope of(final @Nullable List<Placeholder> placeholders,
         final @Nullable List<ModifierResolver> modifiers, final @Nullable List<RuntimeTagResolver> tagResolvers) {
-        return of(
-            placeholders == null ? null : placeholders.toArray(Placeholder[]::new),
-            modifiers == null ? null : modifiers.toArray(ModifierResolver[]::new),
-            tagResolvers == null ? null : tagResolvers.toArray(RuntimeTagResolver[]::new)
-        );
+        final int pLen = placeholders != null ? placeholders.size() : 0;
+        final int mLen = modifiers != null ? modifiers.size() : 0;
+        final int tLen = tagResolvers != null ? tagResolvers.size() : 0;
+        final int total = pLen + mLen + tLen;
+        if (total == 0) return EMPTY;
+        final TagResolver @NotNull [] arr = new TagResolver[total];
+        int idx = 0;
+        if (pLen > 0) for (final Placeholder p : placeholders) arr[idx++] = p;
+        if (mLen > 0) for (final ModifierResolver m : modifiers) arr[idx++] = m;
+        if (tLen > 0) for (final RuntimeTagResolver t : tagResolvers) arr[idx++] = TagResolver.custom(t);
+        return new RenderScope(arr);
+    }
+
+    public @Nullable TagResolver resolveTag(final @NotNull String name) {
+        final TagResolver @Nullable [] arr = resolvers;
+        if (arr == null) return null;
+        for (final TagResolver resolver : arr) {
+            if (resolver == null) continue;
+            final String resName = resolver.name();
+            if (name.equalsIgnoreCase(resName)) return resolver;
+            final RuntimeTagResolver custom = resolver.customResolver();
+            if (custom != null && custom.has(name)) return resolver;
+        }
+        return null;
     }
 
     public @Nullable PreComponent resolvePlaceholder(final @NotNull String key) {
-        final Placeholder @Nullable [] arr = placeholders;
-        if (arr == null) return null;
-        for (final Placeholder placeholder : arr) {
-            if (key.equals(placeholder.key())) return placeholder.preComponent();
-        }
-        return null;
+        final TagResolver resolver = resolveTag(key);
+        return resolver != null ? resolver.preComponent() : null;
     }
 
     public @Nullable ComponentModifier resolveModifier(final @NotNull String name) {
-        final ModifierResolver @Nullable [] arr = modifiers;
-        if (arr == null) return null;
-        for (final ModifierResolver resolver : arr) {
-            for (final String tagName : resolver.names()) {
-                if (name.equals(tagName)) return resolver.modifier();
-            }
-        }
-        return null;
+        final TagResolver resolver = resolveTag(name);
+        return resolver != null ? resolver.modifier() : null;
     }
 
     public boolean hasTagResolvers() {
-        return tagResolvers != null;
-    }
-
-    public @Nullable RuntimeTagResolver resolveTag(final @NotNull String name) {
-        final RuntimeTagResolver @Nullable [] arr = tagResolvers;
-        if (arr == null) return null;
-        for (final RuntimeTagResolver resolver : arr) {
-            if (resolver.has(name)) return resolver;
-        }
-        return null;
+        return resolvers != null;
     }
 
     public @Nullable PreComponent resolve(final @NotNull String key) {
@@ -105,13 +132,6 @@ public final class RenderScope {
     }
 
     public boolean isEmpty() {
-        return placeholders == null && modifiers == null && tagResolvers == null;
-    }
-
-    private static boolean isEmpty(final Placeholder @Nullable [] placeholders,
-        final ModifierResolver @Nullable [] modifiers, final RuntimeTagResolver @Nullable [] tagResolvers) {
-        return (placeholders == null || placeholders.length == 0)
-            && (modifiers == null || modifiers.length == 0)
-            && (tagResolvers == null || tagResolvers.length == 0);
+        return resolvers == null || resolvers.length == 0;
     }
 }

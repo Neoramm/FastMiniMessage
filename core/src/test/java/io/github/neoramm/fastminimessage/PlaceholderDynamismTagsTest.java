@@ -217,9 +217,9 @@ final class PlaceholderDynamismTagsTest {
             Placeholder.ofUnparsed("a", "Alex"), Placeholder.ofUnparsed("b", "bye"));
         final List<TranslationArgument> firstArgs = first.arguments();
         final List<TranslationArgument> secondArgs = second.arguments();
-        assertEquals("Steve", plainText(firstArgs.get(0).asComponent()));
+        assertEquals("Steve", plainText(firstArgs.getFirst().asComponent()));
         assertEquals("hello", plainText(firstArgs.get(1).asComponent()));
-        assertEquals("Alex", plainText(secondArgs.get(0).asComponent()));
+        assertEquals("Alex", plainText(secondArgs.getFirst().asComponent()));
         assertEquals("bye", plainText(secondArgs.get(1).asComponent()));
     }
 

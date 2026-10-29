@@ -18,73 +18,47 @@ import org.jetbrains.annotations.Nullable;
 import java.util.UUID;
 
 public final class PlayerHeadResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"head"};
     @Override
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        if (args.isEmpty()) return new InlinePreComponent(Component.object(ObjectContents.playerHead().build()));
+        if (args.isEmpty()) {
+            return new InlinePreComponent(Component.object(ObjectContents.playerHead().build()))
+                .setStyle(inheritedStyle);
+        }
 
-        final String argument = args.get(0, "");
-        TriState outerLayer = TriState.NOT_SET;
-
+        final String argument = args.getFirst("");
+        final TriState outerLayer;
         if (args.size() == 1) {
-            outerLayer = argumentToTriState(argument);
-            if (outerLayer != TriState.NOT_SET) {
-                return new InlinePreComponent(Component.object(
-                    ObjectContents.playerHead()
-                        .hat(outerLayer.toBooleanOrElse(PlayerHeadObjectContents.DEFAULT_HAT))
-                        .build()
-                ));
+            final TriState single = argumentToTriState(argument);
+            if (single != TriState.NOT_SET) {
+                final boolean hat = single.toBooleanOrElse(PlayerHeadObjectContents.DEFAULT_HAT);
+                return new InlinePreComponent(Component.object(ObjectContents.playerHead().hat(hat).build()))
+                    .setStyle(inheritedStyle);
             }
+            outerLayer = single;
         } else {
             outerLayer = argumentToTriState(args.get(1, ""));
         }
-
         if (args.size() > 2) return new LiteralPreComponent("", inheritedStyle);
 
-        UUID uuid = null;
-        try {
-            uuid = UUID.fromString(argument);
-        } catch (final IllegalArgumentException invalidUuid) {
-            uuid = null;
-        }
-
-        if (uuid != null) {
-            final boolean hat = outerLayer.toBooleanOrElse(PlayerHeadObjectContents.DEFAULT_HAT);
-            return new InlinePreComponent(Component.object(
-                ObjectContents.playerHead()
-                    .id(uuid)
-                    .hat(hat)
-                    .build()
-            ));
-        }
-
-        if (argument.contains("/")) {
-            Key textureKey;
-            try {
-                textureKey = Key.key(argument);
-            } catch (final IllegalArgumentException invalidTextureKey) {
-                textureKey = null;
-            }
-            if (textureKey != null) {
-                final boolean hat = outerLayer.toBooleanOrElse(PlayerHeadObjectContents.DEFAULT_HAT);
-                return new InlinePreComponent(Component.object(
-                    ObjectContents.playerHead()
-                        .texture(textureKey)
-                        .hat(hat)
-                        .build()
-                ));
-            }
-        }
-
-        final String playerName = argument.trim();
         final boolean hat = outerLayer.toBooleanOrElse(PlayerHeadObjectContents.DEFAULT_HAT);
-        return new InlinePreComponent(Component.object(
-            ObjectContents.playerHead()
-                .name(playerName)
-                .hat(hat)
-                .build()
-        ));
+        final PlayerHeadObjectContents.Builder head = ObjectContents.playerHead().hat(hat);
+        try {
+            return new InlinePreComponent(Component.object(head.id(UUID.fromString(argument)).build()))
+                .setStyle(inheritedStyle);
+        } catch (final IllegalArgumentException notUuid) {
+            if (argument.contains("/")) {
+                try {
+                    return new InlinePreComponent(Component.object(head.texture(Key.key(argument)).build()))
+                        .setStyle(inheritedStyle);
+                } catch (final IllegalArgumentException notKey) {
+                }
+            }
+            return new InlinePreComponent(Component.object(head.name(argument.trim()).build()))
+                .setStyle(inheritedStyle);
+        }
     }
 
     private @NotNull TriState argumentToTriState(final @NotNull String value) {
@@ -98,7 +72,7 @@ public final class PlayerHeadResolver implements ComponentResolver {
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"head"};
+        return NAMES;
     }
 
     @Override

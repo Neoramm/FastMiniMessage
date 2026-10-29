@@ -11,45 +11,49 @@ import net.kyori.adventure.text.format.TextColor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static io.github.neoramm.fastminimessage.resolver.ColorResolver.resolveColor;
+
 public final class GradientResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"gradient"};
+    private static final TextColor @NotNull [] DEFAULT_COLORS = {NamedTextColor.WHITE, NamedTextColor.BLACK};
+
     @Override
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        if (args.isEmpty()) {
-            return new GradientPreComponent(
-                new TextColor[]{NamedTextColor.WHITE, NamedTextColor.BLACK}, 0.0f, children);
-        }
+        if (args.isEmpty()) return new GradientPreComponent(DEFAULT_COLORS, 0.0f, children);
         int count = args.size();
         float phase = 0.0f;
 
-        if (count > 2) {
-            final String last = args.get(count - 1);
-            TextColor lastColor = TextColor.fromHexString(last);
-            if (lastColor == null) lastColor = NamedTextColor.NAMES.value(last);
-            if (lastColor == null) {
-                try {
-                    phase = Float.parseFloat(last);
-                    if (phase < -1.0f || phase > 1.0f) phase = 0.0f;
-                    count--;
-                } catch (final NumberFormatException ignored) {
-                    phase = 0.0f;
+        final String last = args.getLast();
+        final TextColor lastColor = resolveColor(last);
+        if (lastColor == null) {
+            try {
+                final float parsedPhase = Float.parseFloat(last);
+                if (parsedPhase < -1.0f || parsedPhase > 1.0f) {
+                    throw new IllegalArgumentException(
+                        "Gradient phase is out of range (" + parsedPhase + "). Must be in [-1.0, 1.0].");
                 }
+                phase = parsedPhase;
+                count--;
+            } catch (final NumberFormatException e) {
+                throw new IllegalArgumentException("Unable to parse a color from '" + last + "'");
             }
         }
+        if (count == 0) return new GradientPreComponent(DEFAULT_COLORS, phase, children);
+        if (count == 1) throw new IllegalArgumentException("Invalid gradient, not enough colors.");
         final TextColor @NotNull [] colors = new TextColor[count];
         for (int i = 0; i < count; i++) {
             final String raw = args.get(i);
-            TextColor color = TextColor.fromHexString(raw);
-            if (color == null) color = NamedTextColor.NAMES.value(raw);
-            colors[i] = color != null ? color : NamedTextColor.WHITE;
+            final TextColor color = resolveColor(raw);
+            if (color == null) throw new IllegalArgumentException("Unable to parse a color from '" + raw + "'");
+            colors[i] = color;
         }
-        if (colors.length < 2) throw new IllegalArgumentException("Invalid gradient, not enough colors.");
         return new GradientPreComponent(colors, phase, children);
     }
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"gradient"};
+        return NAMES;
     }
 }

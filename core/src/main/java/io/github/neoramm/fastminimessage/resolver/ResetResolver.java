@@ -11,15 +11,14 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public final class ResetResolver implements ComponentResolver {
+    private static final String @NotNull [] NAMES = {"reset"};
     @Override
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
         if (children.length == 0) return new LiteralPreComponent("", Style.empty());
         if (children.length == 1) return children[0].deepCopy().setStyle(Style.empty());
-        final GroupPreComponent group = new GroupPreComponent(children);
-        group.setStyle(Style.empty());
-        return group;
+        return new GroupPreComponent(children).setStyle(Style.empty());
     }
 
     @Override
@@ -29,6 +28,6 @@ public final class ResetResolver implements ComponentResolver {
 
     @Override
     public @NotNull String @NotNull [] names() {
-        return new String[]{"reset"};
+        return NAMES;
     }
 }

@@ -25,6 +25,7 @@ public final class NbtPreComponent extends PreComponent {
     private final @NotNull String nbtPath;
     private final boolean interpret;
     private final @Nullable PreComponentTree separator;
+    private volatile @Nullable Component cachedComponent;
 
     private NbtPreComponent(final @NotNull Kind kind, final @Nullable BlockNBTComponent.Pos pos,
         final @Nullable String selector, final @Nullable Key storage, final @NotNull String nbtPath,
@@ -55,6 +56,8 @@ public final class NbtPreComponent extends PreComponent {
 
     @Override
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
+        final @Nullable Component cached = this.cachedComponent;
+        if (cached != null && scope.isEmpty()) return cached;
         final NBTComponentBuilder<?, ?> builder = switch (kind) {
             case BLOCK -> Component.blockNBT().pos(pos);
             case ENTITY -> Component.entityNBT().selector(selector);
@@ -66,8 +69,16 @@ public final class NbtPreComponent extends PreComponent {
         if (interpret) builder.interpret(true);
         final Component component = builder.build();
         final Style style = computedStyle != null ? computedStyle : Style.empty();
-        if (style.isEmpty()) return component;
-        return component.style(style.merge(component.style()));
+        final Component result = style.isEmpty() ? component : component.style(style.merge(component.style()));
+        if (isStatic() && scope.isEmpty()) this.cachedComponent = result;
+        return result;
+    }
+
+    @Override
+    public @NotNull PreComponent setStyle(final @Nullable Style style) {
+        super.setStyle(style);
+        this.cachedComponent = null;
+        return this;
     }
 
     @Override

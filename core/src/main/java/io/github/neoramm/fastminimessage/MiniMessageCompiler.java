@@ -142,8 +142,8 @@ public final class MiniMessageCompiler {
         final ComponentResolver resolver = registry.resolve(node.tagName());
         if (node.isSelfClosing()) {
             if (resolver != null) return resolveSafely(resolver, node, new PreComponent[0], styled.computedStyle);
-            return new DeferredTagPreComponent(node.tagName(), node.rawArgs(), new PreComponent[0], styled.computedStyle(),
-                node.hasArguments(), true, false, this);
+            return new DeferredTagPreComponent(node.tagName(), node.rawArgs(), PreComponent.EMPTY_CHILDREN,
+                styled.computedStyle(), node.hasArguments(), true, false, this);
         }
         if (resolver == null) {
             return new DeferredTagPreComponent(node.tagName(), node.rawArgs(), childComponents, styled.computedStyle(),
@@ -157,17 +157,13 @@ public final class MiniMessageCompiler {
         try {
             return resolver.resolve(node.tagName(), Arguments.parse(node.rawArgs()), children, style, this);
         } catch (final RuntimeException | LinkageError unsupported) {
-            final boolean closing = node.explicitlyClosed() && !node.isSelfClosing();
-            final PreComponent @NotNull [] parts = new PreComponent[children.length + 1 + (closing ? 1 : 0)];
-            parts[0] = new UnparsedPreComponent(rawTag(node), rawTag(node));
-            System.arraycopy(children, 0, parts, 1, children.length);
-            if (closing) parts[parts.length - 1] = new UnparsedPreComponent(node.tagName(), "</" + node.tagName() + ">");
-            return new GroupPreComponent(parts);
+            final String raw = openTagOf(node.tagName(), node.rawArgs(), node.hasArguments());
+            if (children.length == 0 && !node.explicitlyClosed()) {
+                return new UnparsedPreComponent(raw, raw).setStyle(style);
+            }
+            return new DeferredTagPreComponent(node.tagName(), node.rawArgs(), children, style,
+                node.hasArguments(), node.isSelfClosing(), node.explicitlyClosed(), null);
         }
-    }
-
-    private static @NotNull String rawTag(final @NotNull TagNode node) {
-        return openTagOf(node.tagName(), node.rawArgs(), node.hasArguments());
     }
 
     private static @NotNull String selfTagOf(final @NotNull String tagName, final @NotNull String rawArgs,
@@ -198,38 +194,22 @@ public final class MiniMessageCompiler {
             if (resolver != null) {
                 try {
                     return resolver.resolve(
-                        tagName,
-                        Arguments.parse(rawArgs),
-                        new PreComponent[0],
-                        inheritedStyle,
-                        this
-                    );
+                        tagName, Arguments.parse(rawArgs), PreComponent.EMPTY_CHILDREN, inheritedStyle, this);
                 } catch (final RuntimeException | LinkageError unsupported) {
-                    final String selfTag = selfTagOf(tagName, rawArgs, hasArguments);
-                    return new UnparsedPreComponent(tagName, selfTag);
                 }
             }
             final String selfTag = selfTagOf(tagName, rawArgs, hasArguments);
-            return new UnparsedPreComponent(tagName, selfTag);
+            return new UnparsedPreComponent(tagName, selfTag).setStyle(inheritedStyle);
         }
         if (resolver == null) {
-            final List<PreComponent> parts = new ArrayList<>();
-            final String openTag = openTagOf(tagName, rawArgs, hasArguments);
-            parts.add(new UnparsedPreComponent(tagName, openTag));
-            for (final PreComponent child : children) parts.add(child);
-            if (explicitlyClosed) parts.add(new UnparsedPreComponent(tagName, "</" + tagName + ">"));
-            final GroupPreComponent group = new GroupPreComponent(parts.toArray(new PreComponent[0]));
-            group.setStyle(inheritedStyle);
-            return group;
+            return new DeferredTagPreComponent(tagName, rawArgs, children, inheritedStyle, hasArguments,
+                selfClosing, explicitlyClosed, this);
         }
         try {
             return resolver.resolve(tagName, Arguments.parse(rawArgs), children, inheritedStyle, this);
         } catch (final RuntimeException | LinkageError unsupported) {
-            final String openTag = openTagOf(tagName, rawArgs, hasArguments);
-            final PreComponent @NotNull [] parts = new PreComponent[children.length + 1];
-            parts[0] = new UnparsedPreComponent(openTag, openTag);
-            System.arraycopy(children, 0, parts, 1, children.length);
-            return new GroupPreComponent(parts).setStyle(inheritedStyle);
+            return new DeferredTagPreComponent(tagName, rawArgs, children, inheritedStyle, hasArguments,
+                selfClosing, explicitlyClosed, null);
         }
     }
 
@@ -245,7 +225,8 @@ public final class MiniMessageCompiler {
             if (!candidate.isEmpty()) {
                 boolean identifier = true;
                 for (int c = 0; c < candidate.length(); c++) {
-                    if (!Character.isJavaIdentifierPart(candidate.charAt(c))) {
+                    final char ch = candidate.charAt(c);
+                    if (!Character.isJavaIdentifierPart(ch) && ch != '.' && ch != '-' && ch != '/' && ch != ':') {
                         identifier = false;
                         break;
                     }

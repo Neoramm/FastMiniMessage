@@ -29,6 +29,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -59,9 +60,9 @@ public final class ResolverRegistry {
         registry
             .register(new ColorResolver("grey", NamedTextColor.GRAY))
             .register(new ColorResolver("dark_grey", NamedTextColor.DARK_GRAY))
-            .register(new ColorResolver("color", null))
+            .register(new ColorResolver(new String[]{"color", "colour", "c"}, null))
             .register(new StyleResolver(TextDecoration.BOLD, "bold", "b", "!bold", "!b"))
-            .register(new StyleResolver(TextDecoration.ITALIC, "italic", "i", "em"))
+            .register(new StyleResolver(TextDecoration.ITALIC, "italic", "i", "em", "!italic", "!i", "!em"))
             .register(new StyleResolver(TextDecoration.UNDERLINED, "underlined", "!underlined", "u", "!u"))
             .register(new StyleResolver(TextDecoration.STRIKETHROUGH, "strikethrough", "!strikethrough", "st", "!st"))
             .register(new StyleResolver(TextDecoration.OBFUSCATED, "obfuscated", "!obfuscated", "obf", "!obf"))
@@ -127,6 +128,11 @@ public final class ResolverRegistry {
      * @return the matching resolver, or null
      */
     public @Nullable ComponentResolver resolve(final @NotNull String tagName) {
-        return resolvers.get(tagName);
+        final @Nullable ComponentResolver resolver = resolvers.get(tagName);
+        if (resolver != null) return resolver;
+        final @Nullable ComponentResolver lower = resolvers.get(tagName.toLowerCase(Locale.ROOT));
+        if (lower != null) return lower;
+        if (tagName.startsWith("#")) return resolvers.get("color");
+        return null;
     }
 }
