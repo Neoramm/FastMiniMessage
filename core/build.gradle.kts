@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "io.github.neoramm"
-version = providers.gradleProperty("version").getOrElse("1.4.1")
+version = providers.gradleProperty("version").getOrElse("1.5.0")
 
 base {
     archivesName.set("fastminimessage")

@@ -2,6 +2,7 @@ package io.github.neoramm.benchmarks;
 
 import io.github.neoramm.fastminimessage.MiniMessageCompiler;
 import io.github.neoramm.fastminimessage.ResolverRegistry;
+import io.github.neoramm.fastminimessage.compat.ExperimentalMiniMessageTags;
 import io.github.neoramm.fastminimessage.compat.MiniMessageTags;
 import io.github.neoramm.fastminimessage.model.PreComponentTree;
 import io.github.neoramm.fastminimessage.model.RuntimeTagResolver;
@@ -111,6 +112,8 @@ public class MiniMessageTagsBenchmark {
     private @NotNull RuntimeTagResolver placeholderTagsWithInstance;
     private @NotNull RuntimeTagResolver mixedTags;
     private @NotNull RuntimeTagResolver mixedTagsWithInstance;
+    private @NotNull RuntimeTagResolver experimentalPlaceholderTags;
+    private @NotNull RuntimeTagResolver experimentalMixedTags;
 
     @Setup
     public void setup() {
@@ -123,6 +126,8 @@ public class MiniMessageTagsBenchmark {
         placeholderTagsWithInstance = MiniMessageTags.of(miniMessage, PLACEHOLDERS);
         mixedTags = MiniMessageTags.of(ALL);
         mixedTagsWithInstance = MiniMessageTags.of(miniMessage, ALL);
+        experimentalPlaceholderTags = ExperimentalMiniMessageTags.of(PLACEHOLDERS);
+        experimentalMixedTags = ExperimentalMiniMessageTags.of(ALL);
     }
 
     @Benchmark
@@ -141,6 +146,11 @@ public class MiniMessageTagsBenchmark {
     }
 
     @Benchmark
+    public @NotNull Component fastRenderPlaceholdersExperimental() {
+        return placeholderTree.render(NOBODY, experimentalPlaceholderTags);
+    }
+
+    @Benchmark
     public @NotNull Component miniMessageEdgeCases() {
         return miniMessage.deserialize(EDGE_SAMPLE, PLACEHOLDERS);
     }
@@ -148,6 +158,11 @@ public class MiniMessageTagsBenchmark {
     @Benchmark
     public @NotNull Component fastRenderEdgeCases() {
         return edgeTree.render(NOBODY, placeholderTags);
+    }
+
+    @Benchmark
+    public @NotNull Component fastRenderEdgeCasesExperimental() {
+        return edgeTree.render(NOBODY, experimentalPlaceholderTags);
     }
 
     @Benchmark
@@ -168,6 +183,16 @@ public class MiniMessageTagsBenchmark {
     @Benchmark
     public @NotNull Component fastCompileAndRenderMixedWithDelegation() {
         return compiler.compile(MIXED_SAMPLE).render(NOBODY, mixedTagsWithInstance);
+    }
+
+    @Benchmark
+    public @NotNull Component fastRenderMixedExperimental() {
+        return mixedTree.render(NOBODY, experimentalMixedTags);
+    }
+
+    @Benchmark
+    public @NotNull Component fastCompileAndRenderMixedExperimental() {
+        return compiler.compile(MIXED_SAMPLE).render(NOBODY, experimentalMixedTags);
     }
 
     @Benchmark

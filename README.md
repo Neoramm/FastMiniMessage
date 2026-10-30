@@ -70,7 +70,7 @@ implementation("io.github.neoramm:fastminimessage-paper:<version>") // Paper 26.
 |---|---|---|---|
 | **Core Architecture** | Compiles string once into a flattened AST; renders directly via fast-path | Re-tokenizes, parses, and builds the full component tree on every render | Deserializes once, then recursively traverses and rebuilds the component tree |
 | **Static Render Latency** | **~0.89 ns** (cached static reference) | **~10 236 ns** (10+ µs per call) | **~10 236 ns** (initial) + 0 ns (if cached Component without replacement) |
-| **Dynamic Render Latency** | **~2 805 ns** (~2.8 µs with placeholders) | **~10 236 ns – 744 418 ns** (scales with template size) | **~15 000 ns – 120 000 ns** (recursive tree traversal & regex matching) |
+| **Dynamic Render Latency** | **~2 294 – 2 897 ns** (~2.3 – 2.9 µs with placeholders) | **~10 236 ns – 744 418 ns** (scales with template size) | **~15 000 ns – 120 000 ns** (recursive tree traversal & regex matching) |
 | **Garbage Collection (GC)** | **0 B (Zero GC)** on static renders; minimal on dynamic | **14.0 KB – 805.6 KB** allocated per render | High GC; clones `Component` and `TextComponent` builders for every node match |
 | **Static Tree Optimization** | Built-in `isStatic()` detection and automatic zero-allocation caching | None; full parsing is re-executed every single time | Manual; developer must manage cached `Component` instances |
 | **Style Flattening** | Flattens nested wrappers and merges adjacent identical styles at compile time | Retains deeply nested component hierarchy and redundant style wrappers | No flattening; replacements split text components into more fragments |
@@ -231,6 +231,25 @@ array are not delegated.
 `ParserDirective` tags always keep the literal fallback, even with an instance,
 because they change parser state outside the reconstructed fragment.
 
+### Standalone (Experimental): `ExperimentalMiniMessageTags.of(resolvers...)`
+
+```java
+import io.github.neoramm.fastminimessage.compat.ExperimentalMiniMessageTags;
+
+Component component = tree.render(player, ExperimentalMiniMessageTags.of(
+    Placeholder.unparsed("name", player.getName()),
+    TagResolver.resolver("upper", (args, context) ->
+        Tag.inserting(Component.text(args.pop().value().toUpperCase()))),
+    TagResolver.resolver("tint", (Modifying) (current, depth) ->
+        current.color(NamedTextColor.AQUA))
+));
+```
+
+This standalone adapter resolves argument-based resolvers and `Modifying` tags directly in memory
+without requiring a `MiniMessage` instance. By resolving Kyori's internal `ContextImpl` and
+`ArgumentQueueImpl` via `MethodHandle`, it eliminates string fragment reconstruction and avoids
+invoking `MiniMessage.deserialize` altogether (~11x faster than delegation).
+
 ### Semantics
 
 - Native tags always take priority over bridged resolvers, so a bridged resolver
@@ -247,24 +266,26 @@ because they change parser state outside the reconstructed fragment.
 
 ### Cost
 
-The difference between the two modes is measurable, so choose deliberately:
+The difference between the modes is measurable (raw data in [`benchmark/tag-resolver.json`](benchmark/tag-resolver.json)):
 
-| Benchmark (JDK 21, `-wi 10 -i 20 -f 3`) | ns/op | Allocation |
-|---|---|---|
-| `fastRenderPlaceholders` (fast path, no instance) | 2 805 | 6.3 KB |
-| `fastRenderPlaceholdersWithInstance` (instance, nothing delegated) | 2 862 | 6.3 KB |
-| `fastRenderMixedLiteralFallback` (no instance, literal fallback) | 7 847 | 14.5 KB |
-| `fastRenderMixedWithDelegation` (instance, delegated tags) | 88 615 | 161.7 KB |
-| `miniMessageMixed` (plain MiniMessage) | 81 194 | 141.8 KB |
+| Benchmark (JDK 21, `-wi 10 -i 20 -f 3`) | ns/op | Allocation | Notes |
+|---|---|---|---|
+| `fastRenderPlaceholders` (fast path, no instance) | 2 897 | 6.1 KB | Baseline fast path |
+| `fastRenderPlaceholdersWithInstance` (instance, nothing delegated) | 3 144 | 6.3 KB | Negligible instance overhead |
+| `fastRenderPlaceholdersExperimental` (standalone experimental) | 3 716 | 8.1 KB | Direct in-memory dispatch |
+| `fastRenderNativePlaceholders` (native TagResolver) | 2 294 | 4.1 KB | Lowest overhead |
+| `fastRenderMixedLiteralFallback` (no instance, literal fallback) | 8 124 | 13.9 KB | Unsupported tags left unparsed |
+| `fastRenderMixedExperimental` (standalone, arguments + modifying) | 7 466 | 14.9 KB | **~11.1x faster** than delegation |
+| `fastRenderMixedWithDelegation` (instance, delegated tags) | 82 927 | 157.5 KB | Reconstructs fragments + deserializes |
+| `miniMessageMixed` (plain MiniMessage) | 80 509 | 136.9 KB | Traditional MiniMessage baseline |
+| `fastCompileAndRenderMixedExperimental` (compile + render) | 23 031 | 58.0 KB | **~4.3x faster** than delegation |
+| `fastCompileAndRenderMixedWithDelegation` (compile + render) | 99 632 | 199.8 KB | Delegation compile + render |
 
-Supplying an instance costs nothing when no tag is delegated. Each delegated tag,
-however, costs roughly **5–7 µs and ~10 KB**, because it triggers a full
-`MiniMessage.deserialize` on a reconstructed fragment. In tag-dense messages that
-can erase the benefit of precompilation: the `SimpleCommonBenchmark` tag sample
-renders in 3.5 µs on the placeholder-only path, 3.1 µs with the literal fallback,
-52.1 µs with delegation and 32.5 µs with plain MiniMessage. Keep delegation for
-occasional messages, or keep argument-based and `Modifying` resolvers out of hot
-paths.
+Supplying an instance costs nothing when no tag is delegated. Delegating tags via `MiniMessageTags.of(miniMessage, ...)`
+costs roughly **5–7 µs and ~10 KB per delegated tag**, because it triggers a full `MiniMessage.deserialize` on a
+reconstructed fragment. The experimental standalone bridge (`ExperimentalMiniMessageTags.of(...)`) avoids this cost
+by resolving arguments and transformations directly in memory, dropping mixed render times from **82.9 µs (157.5 KB)**
+down to **7.5 µs (14.9 KB)**.
 
 The bridge is optional: `adventure-text-minimessage` is only a compile-time
 dependency of the core module, so consumers using the bridge must have it on their
@@ -359,11 +380,11 @@ Run the benchmarks yourself with the intense profile
 ./gradlew :core:jmhIntense -PjmhArgs="MiniMessageTagsBenchmark"
 ```
 
-The full intense profile benchmark results are stored in [`benchmark/results-intense.json`](benchmark/results-intense.json).
+The full intense profile benchmark results are stored in [`benchmark/results-intense.json`](benchmark/results-intense.json), and the tag resolver bridge results are in [`benchmark/tag-resolver.json`](benchmark/tag-resolver.json).
 
 `MiniMessageTagsBenchmark` covers the `TagResolver` bridge: fixed placeholders on the
-fast path, the same path with a `MiniMessage` instance configured, and mixed messages
-where argument-based resolvers and `Modifying` tags are delegated to MiniMessage.
+fast path, the same path with a `MiniMessage` instance configured, the experimental standalone bridge,
+and mixed messages where argument-based resolvers and `Modifying` tags are delegated to MiniMessage.
 `SimpleCommonBenchmark` and `ComplexLongBenchmark` also include TagResolver samples,
 including the fixed-argument and literal-closing edge cases.
 
