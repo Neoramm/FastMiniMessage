@@ -64,6 +64,69 @@ implementation("io.github.neoramm:fastminimessage:<version>")
 implementation("io.github.neoramm:fastminimessage-paper:<version>") // Paper 26.2+
 ```
 
+## Comparison
+
+| Feature / Metric | FastMiniMessage (`PreComponentTree`) | Standard MiniMessage (`deserialize`) | MiniMessage + `TextReplacementConfig` |
+|---|---|---|---|
+| **Core Architecture** | Compiles string once into a flattened AST; renders directly via fast-path | Re-tokenizes, parses, and builds the full component tree on every render | Deserializes once, then recursively traverses and rebuilds the component tree |
+| **Static Render Latency** | **~0.89 ns** (cached static reference) | **~10 236 ns** (10+ µs per call) | **~10 236 ns** (initial) + 0 ns (if cached Component without replacement) |
+| **Dynamic Render Latency** | **~2 805 ns** (~2.8 µs with placeholders) | **~10 236 ns – 744 418 ns** (scales with template size) | **~15 000 ns – 120 000 ns** (recursive tree traversal & regex matching) |
+| **Garbage Collection (GC)** | **0 B (Zero GC)** on static renders; minimal on dynamic | **14.0 KB – 805.6 KB** allocated per render | High GC; clones `Component` and `TextComponent` builders for every node match |
+| **Static Tree Optimization** | Built-in `isStatic()` detection and automatic zero-allocation caching | None; full parsing is re-executed every single time | Manual; developer must manage cached `Component` instances |
+| **Style Flattening** | Flattens nested wrappers and merges adjacent identical styles at compile time | Retains deeply nested component hierarchy and redundant style wrappers | No flattening; replacements split text components into more fragments |
+| **Dynamic & Argument Tags** | Native support (`<tag:arg1:arg2>`), unclosed tags, and modifiers evaluated on render | Requires re-parsing the entire template with `TagResolver` | Not supported; limited to plain string or regex replacements |
+| **Viewer Context (`Pointered`)** | First-class (`tree.render(player)` auto-resolves `<player>`, PAPI, dialogs) | Must pass context to deserializer on every invocation | None; developer must extract player properties manually beforehand |
+
+## Example usage
+
+### 1. Precompiling messages (`Messages.java`)
+
+Compile templates once when loading classes or configurations. The compiled `PreComponentTree` is thread-safe and can be reused indefinitely across all players:
+
+```java
+package com.example.plugin;
+
+import io.github.neoramm.fastminimessage.MiniMessageCompiler;
+import io.github.neoramm.fastminimessage.ResolverRegistry;
+import io.github.neoramm.fastminimessage.model.PreComponentTree;
+import org.jetbrains.annotations.NotNull;
+
+public final class Messages {
+
+    private static final @NotNull MiniMessageCompiler COMPILER =
+        new MiniMessageCompiler(ResolverRegistry.withDefaults());
+
+    public static final @NotNull PreComponentTree WELCOME =
+        COMPILER.compile("<green>Welcome <gold><player></gold> to the server!</green>");
+
+    private Messages() {
+    }
+}
+```
+
+### 2. Rendering in event listeners (`PlayerJoinListener.java`)
+
+When the player joins, render the precompiled tree directly for the player. The `<player>` placeholder is resolved dynamically from the player's identity without re-parsing the MiniMessage format:
+
+```java
+package com.example.plugin;
+
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.jetbrains.annotations.NotNull;
+
+public final class PlayerJoinListener implements Listener {
+
+    @EventHandler
+    public void onPlayerJoin(final @NotNull PlayerJoinEvent event) {
+        final Player player = event.getPlayer();
+        player.sendMessage(Messages.WELCOME.render(player));
+    }
+}
+```
+
 ## Quick start
 
 ```java
@@ -186,20 +249,20 @@ because they change parser state outside the reconstructed fragment.
 
 The difference between the two modes is measurable, so choose deliberately:
 
-| Benchmark (JDK 25, `-wi 10 -i 20 -f 3`) | ns/op | Allocation |
+| Benchmark (JDK 21, `-wi 10 -i 20 -f 3`) | ns/op | Allocation |
 |---|---|---|
-| `fastRenderPlaceholders` (fast path, no instance) | 3 241 | 7.8 KB |
-| `fastRenderPlaceholdersWithInstance` (instance, nothing delegated) | 3 245 | 7.8 KB |
-| `fastRenderMixedLiteralFallback` (no instance, literal fallback) | 7 208 | 15.0 KB |
-| `fastRenderMixedWithDelegation` (instance, delegated tags) | 79 396 | 162.7 KB |
-| `miniMessageMixed` (plain MiniMessage) | 81 488 | 137.2 KB |
+| `fastRenderPlaceholders` (fast path, no instance) | 2 805 | 6.3 KB |
+| `fastRenderPlaceholdersWithInstance` (instance, nothing delegated) | 2 862 | 6.3 KB |
+| `fastRenderMixedLiteralFallback` (no instance, literal fallback) | 7 847 | 14.5 KB |
+| `fastRenderMixedWithDelegation` (instance, delegated tags) | 88 615 | 161.7 KB |
+| `miniMessageMixed` (plain MiniMessage) | 81 194 | 141.8 KB |
 
 Supplying an instance costs nothing when no tag is delegated. Each delegated tag,
 however, costs roughly **5–7 µs and ~10 KB**, because it triggers a full
 `MiniMessage.deserialize` on a reconstructed fragment. In tag-dense messages that
 can erase the benefit of precompilation: the `SimpleCommonBenchmark` tag sample
-renders in 2.5 µs on the placeholder-only path, 3.1 µs with the literal fallback,
-42.2 µs with delegation and 30.7 µs with plain MiniMessage. Keep delegation for
+renders in 3.5 µs on the placeholder-only path, 3.1 µs with the literal fallback,
+52.1 µs with delegation and 32.5 µs with plain MiniMessage. Keep delegation for
 occasional messages, or keep argument-based and `Modifying` resolvers out of hot
 paths.
 
@@ -265,7 +328,7 @@ dynamic node.
 ## Performance
 
 Benchmarks run with JMH (`-wi 10 -i 20 -f 3 -w 3s -r 3s`, GC profiler). The render path is the hot path;
-compilation happens once and is cached.
+compilation happens once and is cached. Complete raw data is available in [`benchmark/results-intense.json`](benchmark/results-intense.json).
 
 ### Simple, common message
 
@@ -273,9 +336,9 @@ Input: `<green>[Server]</green> <white>Welcome!</white> <yellow>Type <bold>/help
 
 | Benchmark | ns/op | Allocation | vs MiniMessage |
 |---|---|---|---|
-| MiniMessage.deserialize | 10 025 | 13.5 KB | baseline |
-| FastMiniMessage render (cached) | 96 | 296 B | **~105x faster** |
-| FastMiniMessage compile + render | 2 206 | 5.9 KB | **~4.5x faster** |
+| MiniMessage.deserialize | 10 236 | 14.0 KB | baseline |
+| FastMiniMessage render (cached) | 0.89 | 0 B | **~11 500x faster** |
+| FastMiniMessage compile + render | 2 297 | 5.4 KB | **~4.5x faster** |
 
 ### Complex, long input (Lorem ipsum + nested tags, gradients, hover, click, malformed input)
 
@@ -284,9 +347,9 @@ malformed constructs, repeated 3x.
 
 | Benchmark | ns/op | Allocation | vs MiniMessage |
 |---|---|---|---|
-| MiniMessage.deserialize | 658 349 | 662.7 KB | baseline |
-| FastMiniMessage render (cached) | 4 455 | 9.2 KB | **~148x faster** |
-| FastMiniMessage compile + render | 165 075 | 279.6 KB | **~4.0x faster** |
+| MiniMessage.deserialize | 744 418 | 805.6 KB | baseline |
+| FastMiniMessage render (cached) | 5 258 | 8.9 KB | **~142x faster** |
+| FastMiniMessage compile + render | 169 276 | 277.3 KB | **~4.4x faster** |
 
 Run the benchmarks yourself with the intense profile
 (`-wi 10 -i 20 -f 3 -w 3s -r 3s`):
@@ -295,6 +358,8 @@ Run the benchmarks yourself with the intense profile
 ./gradlew :core:jmhIntense -PjmhArgs="MiniMessageRenderBenchmark"
 ./gradlew :core:jmhIntense -PjmhArgs="MiniMessageTagsBenchmark"
 ```
+
+The full intense profile benchmark results are stored in [`benchmark/results-intense.json`](benchmark/results-intense.json).
 
 `MiniMessageTagsBenchmark` covers the `TagResolver` bridge: fixed placeholders on the
 fast path, the same path with a `MiniMessage` instance configured, and mixed messages

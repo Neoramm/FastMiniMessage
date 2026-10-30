@@ -11,12 +11,25 @@ import org.jetbrains.annotations.Nullable;
 
 public final class GroupPreComponent extends PreComponent {
 
+    private volatile @Nullable Component cached;
+
     public GroupPreComponent(final PreComponent @Nullable [] children) {
         this.children = children;
     }
 
     @Override
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
+        if (isStatic() && scope.isEmpty()) {
+            final Component current = cached;
+            if (current != null) return current;
+            final Component built = renderUncached(pointered, scope);
+            cached = built;
+            return built;
+        }
+        return renderUncached(pointered, scope);
+    }
+
+    private @NotNull Component renderUncached(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
         final PreComponent @Nullable [] kids = children;
         if (kids == null || kids.length == 0) {
             return Component.empty().style(computedStyle != null ? computedStyle : Style.empty());
@@ -41,7 +54,26 @@ public final class GroupPreComponent extends PreComponent {
             builder.append(render(pointered, scope));
             return;
         }
+        if (isStatic() && scope.isEmpty()) {
+            final Component current = cached;
+            if (current != null) {
+                builder.append(current);
+                return;
+            }
+        }
         renderChildrenInto(pointered, builder, scope);
+    }
+
+    @Override
+    public @NotNull PreComponent setStyle(final @Nullable Style style) {
+        cached = null;
+        return super.setStyle(style);
+    }
+
+    @Override
+    public @NotNull PreComponent setChildren(final @Nullable PreComponent[] children) {
+        cached = null;
+        return super.setChildren(children);
     }
 
     @Override

@@ -125,7 +125,7 @@ public final class MiniMessageTags {
         @Override
         public boolean has(final @NotNull String name) {
             final String lookupName = normalize(name);
-            for (final TagResolver resolver : resolvers) if (resolver.has(lookupName)) return true;
+            for (int i = 0; i < resolvers.length; i++) if (resolvers[i].has(lookupName)) return true;
             return false;
         }
 
@@ -133,10 +133,11 @@ public final class MiniMessageTags {
         public @Nullable Component render(final @NotNull RuntimeTagContext context) {
             final String lookupName = normalize(context.name());
             if (context.hasArguments() || !context.rawArgs().isEmpty()) {
-                return hasAny(lookupName) ? delegate(context) : null;
+                return has(lookupName) ? delegate(context) : null;
             }
             boolean matched = false;
-            for (final TagResolver resolver : resolvers) {
+            for (int i = 0; i < resolvers.length; i++) {
+                final TagResolver resolver = resolvers[i];
                 if (!resolver.has(lookupName)) continue;
                 matched = true;
                 final Tag tag;
@@ -151,11 +152,7 @@ public final class MiniMessageTags {
                 if (rendered != null) return rendered;
                 return delegate(context);
             }
-            return matched || hasAny(lookupName) ? delegate(context) : null;
-        }
-
-        private boolean hasAny(final @NotNull String lookupName) {
-            return has(lookupName);
+            return matched || has(lookupName) ? delegate(context) : null;
         }
 
         private @Nullable Component delegate(final @NotNull RuntimeTagContext context) {

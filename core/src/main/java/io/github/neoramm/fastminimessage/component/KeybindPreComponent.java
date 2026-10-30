@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
 
 public final class KeybindPreComponent extends PreComponent {
     private final @NotNull String keybind;
-    private @Nullable Component cachedComponent;
+    private volatile @Nullable Component cachedComponent;
 
     public KeybindPreComponent(final @NotNull String keybind, final @Nullable Style style) {
         this.keybind = keybind;
@@ -36,6 +36,11 @@ public final class KeybindPreComponent extends PreComponent {
 
     @Override
     public boolean isStatic() {
+        return true;
+    }
+
+    @Override
+    public boolean isDirectStyleLeaf() {
         return true;
     }
 

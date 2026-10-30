@@ -43,7 +43,7 @@ public final class Arguments implements Iterator<String> {
                 hasQuotesOrEscapes = true;
                 break;
             }
-            if (c == delimiter) delimiterCount++;
+            if (c == delimiter && !isUrlProtocol(rawArgs, i, delimiter)) delimiterCount++;
         }
         if (!hasQuotesOrEscapes) {
             if (delimiterCount == 0) return new Arguments(new String[]{rawArgs});
@@ -51,7 +51,7 @@ public final class Arguments implements Iterator<String> {
             int start = 0;
             int idx = 0;
             for (int i = 0; i < len; i++) {
-                if (rawArgs.charAt(i) == delimiter) {
+                if (rawArgs.charAt(i) == delimiter && !isUrlProtocol(rawArgs, i, delimiter)) {
                     result[idx++] = rawArgs.substring(start, i);
                     start = i + 1;
                 }
@@ -79,13 +79,18 @@ public final class Arguments implements Iterator<String> {
             }
             if (quote == 0 && (c == '\'' || c == '"')) quote = c;
             else if (quote != 0 && c == quote) quote = 0;
-            else if (c == delimiter && quote == 0) {
+            else if (c == delimiter && quote == 0 && !isUrlProtocol(rawArgs, i, delimiter)) {
                 result.add(current.toString());
                 current.setLength(0);
             } else current.append(c);
         }
         result.add(current.toString());
         return new Arguments(result.toArray(String[]::new));
+    }
+
+    private static boolean isUrlProtocol(final @NotNull String rawArgs, final int index, final char delimiter) {
+        return delimiter == ':' && index + 2 < rawArgs.length()
+            && rawArgs.charAt(index + 1) == '/' && rawArgs.charAt(index + 2) == '/';
     }
 
     public @Nullable String get(final int index, final @Nullable String defaultValue) {
@@ -148,12 +153,17 @@ public final class Arguments implements Iterator<String> {
     }
 
     @Override
-    public String next() {
+    public @NotNull String next() {
         if (!hasNext()) throw new NoSuchElementException();
         return args[index++];
     }
 
-    public String nextOr(final @NotNull String def) {
+    public @NotNull String next(final @NotNull String message) {
+        if (!hasNext()) throw new NoSuchElementException(message);
+        return args[index++];
+    }
+
+    public @Nullable String nextOr(final @Nullable String def) {
         return hasNext() ? next() : def;
     }
 

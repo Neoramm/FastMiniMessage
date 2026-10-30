@@ -37,7 +37,13 @@ public final class HoverResolver implements ComponentResolver {
         final ActionHandler<Object> handler = actionHandler(action);
         if (handler == null) return new LiteralPreComponent("", inheritedStyle);
         if (children.length == 0) return new LiteralPreComponent("", inheritedStyle);
-        final BiFunction<Pointered, RenderScope, HoverEvent<?>> supplier = handler.buildSupplier(args, compiler);
+        final HoverResolution resolution = handler.buildResolution(args, compiler);
+        if (resolution.staticEvent != null) {
+            return new HoverPreComponent(resolution.staticEvent, children).setStyle(inheritedStyle);
+        }
+        final BiFunction<Pointered, RenderScope, HoverEvent<?>> supplier = resolution.dynamicSupplier != null
+            ? resolution.dynamicSupplier
+            : (final @Nullable Pointered pointered, final @NotNull RenderScope scope) -> null;
         return new HoverPreComponent(supplier, children).setStyle(inheritedStyle);
     }
 
@@ -49,8 +55,23 @@ public final class HoverResolver implements ComponentResolver {
         return null;
     }
 
+    private record HoverResolution(
+        @Nullable HoverEvent<?> staticEvent,
+        @Nullable BiFunction<Pointered, RenderScope, HoverEvent<?>> dynamicSupplier
+    ) {
+        static @NotNull HoverResolution ofStatic(final @NotNull HoverEvent<?> event) {
+            return new HoverResolution(event, null);
+        }
+
+        static @NotNull HoverResolution ofDynamic(
+            final @NotNull BiFunction<Pointered, RenderScope, HoverEvent<?>> supplier
+        ) {
+            return new HoverResolution(null, supplier);
+        }
+    }
+
     private interface ActionHandler<V> {
-        @NotNull BiFunction<Pointered, RenderScope, HoverEvent<?>> buildSupplier(final @NotNull Arguments args,
+        @NotNull HoverResolution buildResolution(final @NotNull Arguments args,
             final @NotNull MiniMessageCompiler compiler);
     }
 
@@ -58,17 +79,13 @@ public final class HoverResolver implements ComponentResolver {
         static final ShowTextHandler INSTANCE = new ShowTextHandler();
 
         @Override
-        public @NotNull BiFunction<Pointered, RenderScope, HoverEvent<?>> buildSupplier(final @NotNull Arguments args,
+        public @NotNull HoverResolution buildResolution(final @NotNull Arguments args,
             final @NotNull MiniMessageCompiler compiler) {
             final String text = args.get(1, "");
             final PreComponentTree tree = compiler.compile(text);
-            if (tree.isStatic()) {
-                final HoverEvent<Component> cachedEvent = HoverEvent.showText(tree.render(null));
-                return (final @Nullable Pointered pointered, final @NotNull RenderScope scope) ->
-                    scope.isEmpty() ? cachedEvent : HoverEvent.showText(tree.render(pointered, scope));
-            }
-            return (final @Nullable Pointered pointered, final @NotNull RenderScope scope) ->
-                HoverEvent.showText(tree.render(pointered, scope));
+            if (tree.isStatic()) return HoverResolution.ofStatic(HoverEvent.showText(tree.render(null)));
+            return HoverResolution.ofDynamic((final @Nullable Pointered pointered, final @NotNull RenderScope scope) ->
+                HoverEvent.showText(tree.render(pointered, scope)));
         }
     }
 
@@ -76,7 +93,7 @@ public final class HoverResolver implements ComponentResolver {
         static final ShowItemHandler INSTANCE = new ShowItemHandler();
 
         @Override
-        public @NotNull BiFunction<Pointered, RenderScope, HoverEvent<?>> buildSupplier(final @NotNull Arguments args,
+        public @NotNull HoverResolution buildResolution(final @NotNull Arguments args,
             final @NotNull MiniMessageCompiler compiler) {
             try {
                 final String idRaw = args.get(1, "minecraft:air");
@@ -85,8 +102,7 @@ public final class HoverResolver implements ComponentResolver {
                 if (args.size() > 3) {
                     final String value = args.get(3, "");
                     if (value.startsWith("{")) {
-                        return (final @Nullable Pointered pointered, final @NotNull RenderScope scope) ->
-                            HoverEvent.showItem(legacyShowItem(key, count, value));
+                        return HoverResolution.ofStatic(HoverEvent.showItem(legacyShowItem(key, count, value)));
                     }
                     final Map<@NotNull Key, @NotNull BinaryTagHolder> datas = new HashMap<>();
                     for (int i = 3; i < args.size(); i += 2) {
@@ -94,16 +110,13 @@ public final class HoverResolver implements ComponentResolver {
                         final String dataValue = args.get(i + 1, "");
                         datas.put(dataKey, BinaryTagHolder.binaryTagHolder(dataValue));
                     }
-                    return (final @Nullable Pointered pointered, final @NotNull RenderScope scope) ->
-                        HoverEvent.showItem(HoverEvent.ShowItem.showItem(key, count, datas));
+                    return HoverResolution.ofStatic(HoverEvent.showItem(
+                        HoverEvent.ShowItem.showItem(key, count, datas)));
                 }
-                final HoverEvent.ShowItem item = HoverEvent.ShowItem.showItem(key, count);
-                final HoverEvent<HoverEvent.ShowItem> event = HoverEvent.showItem(item);
-                return (final @Nullable Pointered pointered, final @NotNull RenderScope scope) -> event;
+                return HoverResolution.ofStatic(HoverEvent.showItem(HoverEvent.ShowItem.showItem(key, count)));
             } catch (final InvalidKeyException | NumberFormatException e) {
-                final HoverEvent<HoverEvent.ShowItem> fallback =
-                    HoverEvent.showItem(HoverEvent.ShowItem.showItem(Key.key("minecraft:air"), 1));
-                return (final @Nullable Pointered pointered, final @NotNull RenderScope scope) -> fallback;
+                return HoverResolution.ofStatic(HoverEvent.showItem(
+                    HoverEvent.ShowItem.showItem(Key.key("minecraft:air"), 1)));
             }
         }
 
@@ -125,7 +138,7 @@ public final class HoverResolver implements ComponentResolver {
         static final ShowEntityHandler INSTANCE = new ShowEntityHandler();
 
         @Override
-        public @NotNull BiFunction<Pointered, RenderScope, HoverEvent<?>> buildSupplier(final @NotNull Arguments args,
+        public @NotNull HoverResolution buildResolution(final @NotNull Arguments args,
             final @NotNull MiniMessageCompiler compiler) {
             try {
                 final Key key = Key.key(args.get(1, "minecraft:pig"));
@@ -135,23 +148,18 @@ public final class HoverResolver implements ComponentResolver {
                     final String nameRaw = args.get(3, "");
                     final PreComponentTree nameTree = compiler.compile(nameRaw);
                     if (nameTree.isStatic()) {
-                        final HoverEvent<HoverEvent.ShowEntity> cachedEvent = HoverEvent.showEntity(
-                            HoverEvent.ShowEntity.showEntity(key, id, nameTree.render(null)));
-                        return (final @Nullable Pointered pointered, final @NotNull RenderScope scope) ->
-                            scope.isEmpty() ? cachedEvent : HoverEvent.showEntity(
-                                HoverEvent.ShowEntity.showEntity(key, id, nameTree.render(pointered, scope)));
+                        return HoverResolution.ofStatic(HoverEvent.showEntity(
+                            HoverEvent.ShowEntity.showEntity(key, id, nameTree.render(null))));
                     }
-                    return (final @Nullable Pointered pointered, final @NotNull RenderScope scope) ->
-                        HoverEvent.showEntity(
-                            HoverEvent.ShowEntity.showEntity(key, id, nameTree.render(pointered, scope)));
+                    return HoverResolution.ofDynamic(
+                        (final @Nullable Pointered pointered, final @NotNull RenderScope scope) ->
+                            HoverEvent.showEntity(
+                                HoverEvent.ShowEntity.showEntity(key, id, nameTree.render(pointered, scope))));
                 }
-                final HoverEvent.ShowEntity entity = HoverEvent.ShowEntity.showEntity(key, id);
-                final HoverEvent<HoverEvent.ShowEntity> event = HoverEvent.showEntity(entity);
-                return (final @Nullable Pointered pointered, final @NotNull RenderScope scope) -> event;
+                return HoverResolution.ofStatic(HoverEvent.showEntity(HoverEvent.ShowEntity.showEntity(key, id)));
             } catch (final IllegalArgumentException | InvalidKeyException e) {
-                final HoverEvent<HoverEvent.ShowEntity> fallback = HoverEvent.showEntity(
-                    HoverEvent.ShowEntity.showEntity(Key.key("minecraft:pig"), UUID.randomUUID()));
-                return (final @Nullable Pointered pointered, final @NotNull RenderScope scope) -> fallback;
+                return HoverResolution.ofStatic(HoverEvent.showEntity(
+                    HoverEvent.ShowEntity.showEntity(Key.key("minecraft:pig"), UUID.randomUUID())));
             }
         }
     }

@@ -106,7 +106,10 @@ public final class ResolverRegistry {
     public @NotNull ResolverRegistry register(final @NotNull ComponentResolver resolver) {
         for (final String name : resolver.names()) {
             final ComponentResolver existing = resolvers.get(name);
-            if (existing == null || resolver.priority() > existing.priority()) resolvers.put(name, resolver);
+            if (existing == null || resolver.priority() > existing.priority()) {
+                resolvers.put(name, resolver);
+                if (hasUpperCase(name)) resolvers.putIfAbsent(name.toLowerCase(Locale.ROOT), resolver);
+            }
         }
         return this;
     }
@@ -130,9 +133,19 @@ public final class ResolverRegistry {
     public @Nullable ComponentResolver resolve(final @NotNull String tagName) {
         final @Nullable ComponentResolver resolver = resolvers.get(tagName);
         if (resolver != null) return resolver;
-        final @Nullable ComponentResolver lower = resolvers.get(tagName.toLowerCase(Locale.ROOT));
-        if (lower != null) return lower;
+        if (hasUpperCase(tagName)) {
+            final @Nullable ComponentResolver lower = resolvers.get(tagName.toLowerCase(Locale.ROOT));
+            if (lower != null) return lower;
+        }
         if (tagName.startsWith("#")) return resolvers.get("color");
         return null;
+    }
+
+    private static boolean hasUpperCase(final @NotNull String str) {
+        for (int i = 0; i < str.length(); i++) {
+            final char c = str.charAt(i);
+            if (c >= 'A' && c <= 'Z') return true;
+        }
+        return false;
     }
 }

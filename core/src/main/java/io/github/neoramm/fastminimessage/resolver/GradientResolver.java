@@ -21,7 +21,7 @@ public final class GradientResolver implements ComponentResolver {
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        if (args.isEmpty()) return new GradientPreComponent(DEFAULT_COLORS, 0.0f, children);
+        if (args.isEmpty()) return new GradientPreComponent(DEFAULT_COLORS, 0.0f, children).setStyle(inheritedStyle);
         int count = args.size();
         float phase = 0.0f;
 
@@ -40,7 +40,7 @@ public final class GradientResolver implements ComponentResolver {
                 throw new IllegalArgumentException("Unable to parse a color from '" + last + "'");
             }
         }
-        if (count == 0) return new GradientPreComponent(DEFAULT_COLORS, phase, children);
+        if (count == 0) return new GradientPreComponent(DEFAULT_COLORS, phase, children).setStyle(inheritedStyle);
         if (count == 1) throw new IllegalArgumentException("Invalid gradient, not enough colors.");
         final TextColor @NotNull [] colors = new TextColor[count];
         for (int i = 0; i < count; i++) {
@@ -49,7 +49,7 @@ public final class GradientResolver implements ComponentResolver {
             if (color == null) throw new IllegalArgumentException("Unable to parse a color from '" + raw + "'");
             colors[i] = color;
         }
-        return new GradientPreComponent(colors, phase, children);
+        return new GradientPreComponent(colors, phase, children).setStyle(inheritedStyle);
     }
 
     @Override

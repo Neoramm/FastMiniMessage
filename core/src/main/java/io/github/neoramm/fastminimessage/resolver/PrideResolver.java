@@ -71,7 +71,7 @@ public final class PrideResolver implements ComponentResolver {
         }
 
         final TextColor @NotNull [] colors = FLAGS.getOrDefault(flag, FLAGS.get(PRIDE));
-        return new GradientPreComponent(colors, phase, children);
+        return new GradientPreComponent(colors, phase, children).setStyle(inheritedStyle);
     }
 
     private float parsePhase(final @NotNull String raw) {

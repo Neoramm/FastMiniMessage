@@ -45,9 +45,9 @@ public final class DefaultTagScanner implements TagScanner {
                         textBuffer.append(normalized, tagStart, end + 1);
                         continue;
                     }
-                    final String[] closeParts = splitTag(content.substring(1));
-                    final String closeTagName = closeParts[0];
-                    final String closeArgs = closeParts.length > 1 ? closeParts[1] : null;
+                    final TagParts closeParts = splitTag(content.substring(1));
+                    final String closeTagName = closeParts.tagName();
+                    final String closeArgs = closeParts.rawArgs();
                     if ("reset".equalsIgnoreCase(closeTagName)) continue;
                     boolean open = false;
                     for (final OpenTag tag : stack) {
@@ -62,10 +62,10 @@ public final class DefaultTagScanner implements TagScanner {
                     }
                     closeUpTo(closeTagName, closeArgs, stack, roots);
                 } else {
-                    final String[] parts = splitTag(content);
-                    final String tagName = parts[0];
-                    final boolean hasArguments = parts.length > 1;
-                    final String rawArgs = hasArguments ? parts[1] : "";
+                    final TagParts parts = splitTag(content);
+                    final String tagName = parts.tagName();
+                    final boolean hasArguments = parts.rawArgs() != null;
+                    final String rawArgs = hasArguments ? parts.rawArgs() : "";
                     if ("reset".equalsIgnoreCase(tagName)) {
                         closeAll(stack, roots);
                         continue;
@@ -79,9 +79,18 @@ public final class DefaultTagScanner implements TagScanner {
                         stack.push(new OpenTag(tagName, rawArgs, hasArguments));
                     }
                 }
-            } else if (c == '\\' && i + 1 < normalized.length() && normalized.charAt(i + 1) == '<') {
-                textBuffer.append('<');
-                i += 2;
+            } else if (c == '\\' && i + 1 < normalized.length()) {
+                final char next = normalized.charAt(i + 1);
+                if (next == '\\') {
+                    textBuffer.append('\\');
+                    i += 2;
+                } else if (next == '<') {
+                    textBuffer.append('<');
+                    i += 2;
+                } else {
+                    textBuffer.append(c);
+                    i++;
+                }
             } else {
                 textBuffer.append(c);
                 i++;
@@ -156,11 +165,14 @@ public final class DefaultTagScanner implements TagScanner {
         return -1;
     }
 
-    private @NotNull String @NotNull [] splitTag(final @NotNull String content) {
-        if (content.startsWith("#")) return new String[]{content, content};
+    private record TagParts(@NotNull String tagName, @Nullable String rawArgs) {
+    }
+
+    private static @NotNull TagParts splitTag(final @NotNull String content) {
+        if (content.startsWith("#")) return new TagParts(content, content);
         final int colon = content.indexOf(':');
-        if (colon == -1) return new String[]{content};
-        return new String[]{content.substring(0, colon), content.substring(colon + 1)};
+        if (colon == -1) return new TagParts(content, null);
+        return new TagParts(content.substring(0, colon), content.substring(colon + 1));
     }
 
     private static final class OpenTag {

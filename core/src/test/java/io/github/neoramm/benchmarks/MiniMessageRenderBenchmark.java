@@ -30,10 +30,8 @@ import java.util.concurrent.TimeUnit;
  * Compares the cost of turning the same long MiniMessage document into an Adventure component,
  * with the reference parser and with the precompiled tree used by Trigger Engine.
  *
- * <p>Every tag registered in {@link ResolverRegistry#withDefaults()} appears at least once.
- * MiniMessage-only constructs without an equivalent resolver (font, transition, score, selector,
- * nbt, click callbacks and the negated italic/shadow aliases) are left out so both pipelines
- * perform the same work.</p>
+ * <p>Every tag registered in {@link ResolverRegistry#withDefaults()} appears at least once,
+ * including font, transition, score, selector, nbt, sprite, head, and gradient phase variations.</p>
  *
  * <p>{@link #miniPreCompilerRenderDynamic()} adds a value that is only known at render time inside the
  * gradients and wrappers, so their output cannot be cached; it measures the path used by templates
@@ -86,6 +84,12 @@ public class MiniMessageRenderBenchmark {
             <key:key.jump/><key:key.sneak/>\
             <lang:chat.type.text:Steve:hello/><lang_or:custom.key:'Fallback text':argument/>\
             <sprite:items:item/diamond/><head:Steve/><head/>\
+            <font:minecraft:uniform>uniform font</font>\
+            <transition:#ff0000:#0000ff:0.5>transition text</transition>\
+            <selector:@a:', '><score:Steve:kills><nbt:block:0 64 0:Items:true>\
+            <gradient:0.5>gradient phase only</gradient>\
+            <colour:grey>british colour</colour>\
+            <click:run_command:'/spawn'>closed with args</click:run_command>\
             <newline/><br/>
             """.repeat(2);
 
@@ -94,9 +98,12 @@ public class MiniMessageRenderBenchmark {
      * the gradients and wrappers, so their results cannot be cached across renders.
      */
     private static final @NotNull String DYNAMIC_SAMPLE = """
-            <gradient:#ff0000:#00ff00:#0000ff>a gradient long enough to be split into many colours with <dyn/></gradient>\
+            <gradient:#ff0000:#00ff00:#0000ff>gradient with colours and <dyn/></gradient>\
             <gradient:red:gold:blue:white>another gradient with named colours, <dyn/> and even more text</gradient>\
             <rainbow>a rainbow long enough to be split into many coloured components and <dyn/></rainbow>\
+            <transition:red:blue:0.5>transition with <dyn/></transition>\
+            <selector:@a:'<dyn/>'>\
+            <font:minecraft:uniform>font with <dyn/></font>\
             <bold>bold <dyn/> bold again</bold><red>red <dyn/> red again</red>\
             <click:run_command:'/spawn'>click with <dyn/> inside</click>\
             <insert:'shift click'>insert with <dyn/> inside</insert>\

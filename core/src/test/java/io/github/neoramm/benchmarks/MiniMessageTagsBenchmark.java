@@ -63,6 +63,26 @@ public class MiniMessageTagsBenchmark {
         NAME, RANK, STYLED, COMPONENT, PARSED, UPPER, TINT
     };
 
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_NAME =
+        io.github.neoramm.fastminimessage.model.TagResolver.inserting("name", "Hector");
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_RANK =
+        io.github.neoramm.fastminimessage.model.TagResolver.inserting("rank", "Admin");
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_COMPONENT =
+        io.github.neoramm.fastminimessage.model.TagResolver.inserting("comp",
+            Component.text("C", NamedTextColor.BLUE));
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_UPPER =
+        io.github.neoramm.fastminimessage.model.TagResolver.dynamic("upper",
+            (args, ctx) -> Component.text(args.getFirst().toUpperCase()));
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_TINT =
+        io.github.neoramm.fastminimessage.model.TagResolver.modifying("tint",
+            (current, ctx) -> current.color(NamedTextColor.AQUA));
+
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver @NotNull []
+        NATIVE_PLACEHOLDERS = {NATIVE_NAME, NATIVE_RANK, NATIVE_COMPONENT};
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver @NotNull [] NATIVE_ALL = {
+        NATIVE_NAME, NATIVE_RANK, NATIVE_COMPONENT, NATIVE_UPPER, NATIVE_TINT
+    };
+
     private static final @NotNull String PLACEHOLDER_SAMPLE = """
             <name> <rank> <styled>styled</styled> <comp> <parsed> <name/> <name> \
             """.repeat(4);
@@ -148,5 +168,20 @@ public class MiniMessageTagsBenchmark {
     @Benchmark
     public @NotNull Component fastCompileAndRenderMixedWithDelegation() {
         return compiler.compile(MIXED_SAMPLE).render(NOBODY, mixedTagsWithInstance);
+    }
+
+    @Benchmark
+    public @NotNull Component fastRenderNativePlaceholders() {
+        return placeholderTree.render(NOBODY, NATIVE_PLACEHOLDERS);
+    }
+
+    @Benchmark
+    public @NotNull Component fastRenderNativeMixed() {
+        return mixedTree.render(NOBODY, NATIVE_ALL);
+    }
+
+    @Benchmark
+    public @NotNull Component fastCompileAndRenderNativeMixed() {
+        return compiler.compile(MIXED_SAMPLE).render(NOBODY, NATIVE_ALL);
     }
 }

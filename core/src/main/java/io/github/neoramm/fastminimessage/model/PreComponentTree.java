@@ -20,9 +20,12 @@ public final class PreComponentTree {
     public static final @NotNull PreComponentTree EMPTY =
         new PreComponentTree(new InlinePreComponent(Component.empty()));
     private final @NotNull PreComponent root;
+    private final boolean isStatic;
+    private volatile @Nullable Component cachedStatic;
 
     public PreComponentTree(final @NotNull PreComponent root) {
         this.root = root;
+        this.isStatic = root.isStatic();
     }
 
     /**
@@ -31,7 +34,7 @@ public final class PreComponentTree {
      * @return the rendered component
      */
     public @NotNull Component render() {
-        return root.render(null, RenderScope.EMPTY);
+        return render(null, RenderScope.EMPTY);
     }
 
     /**
@@ -41,49 +44,61 @@ public final class PreComponentTree {
      * @return the rendered component
      */
     public @NotNull Component render(final @Nullable Pointered pointered) {
-        return root.render(pointered, RenderScope.EMPTY);
+        return render(pointered, RenderScope.EMPTY);
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final @Nullable RenderScope scope) {
+        if (isStatic && (scope == null || scope.isEmpty())) {
+            final Component cached = cachedStatic;
+            if (cached != null) return cached;
+            final Component built = root.render(pointered, RenderScope.EMPTY);
+            cachedStatic = built;
+            return built;
+        }
         return root.render(pointered, scope != null ? scope : RenderScope.EMPTY);
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final TagResolver @NotNull ... resolvers) {
+        if (isStatic && (resolvers == null || resolvers.length == 0)) return render(pointered, RenderScope.EMPTY);
         return root.render(pointered, RenderScope.of(resolvers));
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered,
         final @NotNull ModifierResolver... modifiers) {
+        if (isStatic && (modifiers == null || modifiers.length == 0)) return render(pointered, RenderScope.EMPTY);
         return root.render(pointered, RenderScope.of(modifiers));
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RuntimeResolver... resolvers) {
+        if (isStatic && (resolvers == null || resolvers.length == 0)) return render(pointered, RenderScope.EMPTY);
         return root.render(pointered, RenderScope.from(resolvers));
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull PreComponent extra) {
-        final Component base = root.render(pointered, RenderScope.EMPTY);
+        final Component base = render(pointered, RenderScope.EMPTY);
         final Component appended = extra.render(pointered, RenderScope.EMPTY);
         return Component.text().append(base).append(appended).build();
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final PreComponent @NotNull [] extras) {
-        final TextComponent.Builder builder = Component.text().append(root.render(pointered, RenderScope.EMPTY));
+        final TextComponent.Builder builder = Component.text().append(render(pointered, RenderScope.EMPTY));
         for (final PreComponent extra : extras) builder.append(extra.render(pointered, RenderScope.EMPTY));
         return builder.build();
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered,
         final @NotNull List<? extends TagResolver> resolvers) {
+        if (isStatic && (resolvers == null || resolvers.isEmpty())) return render(pointered, RenderScope.EMPTY);
         return root.render(pointered, RenderScope.of(resolvers));
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final Placeholder @NotNull ... placeholders) {
+        if (isStatic && (placeholders == null || placeholders.length == 0)) return render(pointered, RenderScope.EMPTY);
         return root.render(pointered, RenderScope.of(placeholders));
     }
 
     public boolean isStatic() {
-        return root.isStatic();
+        return isStatic;
     }
 
     public @NotNull PreComponentTree copy() {

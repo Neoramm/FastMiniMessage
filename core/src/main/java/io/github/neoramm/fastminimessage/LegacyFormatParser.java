@@ -29,34 +29,19 @@ public final class LegacyFormatParser {
             final char c = input.charAt(i);
             if (c == '&' && i + 1 < n) {
                 if (input.charAt(i + 1) == '#' && i + 7 < n) {
-                    final String hex = input.substring(i + 2, i + 8);
-                    if (isHex(hex)) {
-                        out.append("<reset><#").append(hex).append('>');
+                    if (isHex(input, i + 2, i + 8)) {
+                        out.append("<reset><#").append(input, i + 2, i + 8).append('>');
                         i += 8;
                         continue;
                     }
                 }
                 final char nextChar = input.charAt(i + 1);
-                if ((nextChar == 'x' || nextChar == 'X') && i + 13 < n) {
-                    final char[] hex = new char[6];
-                    boolean ok = true;
-                    for (int k = 0; k < 6; k++) {
-                        if (input.charAt(i + 2 + k * 2) != '&') {
-                            ok = false;
-                            break;
-                        }
-                        final char d = input.charAt(i + 3 + k * 2);
-                        if (!isHexChar(d)) {
-                            ok = false;
-                            break;
-                        }
-                        hex[k] = d;
-                    }
-                    if (ok) {
-                        out.append("<reset><#").append(hex).append('>');
-                        i += 14;
-                        continue;
-                    }
+                if ((nextChar == 'x' || nextChar == 'X') && i + 13 < n && isLegacyHex(input, i)) {
+                    out.append("<reset><#");
+                    for (int k = 0; k < 6; k++) out.append(input.charAt(i + 3 + k * 2));
+                    out.append('>');
+                    i += 14;
+                    continue;
                 }
                 final char code = Character.toLowerCase(input.charAt(i + 1));
                 if (isColorCode(code)) {
@@ -105,8 +90,17 @@ public final class LegacyFormatParser {
         return hexValue(c) >= 0;
     }
 
-    private static boolean isHex(final @NotNull String hex) {
-        for (int i = 0; i < hex.length(); i++) if (!isHexChar(hex.charAt(i))) return false;
+    private static boolean isHex(final @NotNull String input, final int start, final int end) {
+        for (int i = start; i < end; i++) if (!isHexChar(input.charAt(i))) return false;
+        return true;
+    }
+
+    private static boolean isLegacyHex(final @NotNull String input, final int offset) {
+        for (int k = 0; k < 6; k++) {
+            if (input.charAt(offset + 2 + k * 2) != '&' || !isHexChar(input.charAt(offset + 3 + k * 2))) {
+                return false;
+            }
+        }
         return true;
     }
 

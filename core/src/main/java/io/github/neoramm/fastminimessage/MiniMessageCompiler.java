@@ -216,16 +216,16 @@ public final class MiniMessageCompiler {
     private static boolean containsPlaceholder(final @Nullable String rawArgs) {
         if (rawArgs == null || rawArgs.isEmpty()) return false;
         int i = 0;
-        while (true) {
+        final int len = rawArgs.length();
+        while (i < len) {
             final int open = rawArgs.indexOf('<', i);
             if (open == -1) break;
             final int close = rawArgs.indexOf('>', open);
             if (close == -1) break;
-            final String candidate = rawArgs.substring(open + 1, close);
-            if (!candidate.isEmpty()) {
+            if (close > open + 1) {
                 boolean identifier = true;
-                for (int c = 0; c < candidate.length(); c++) {
-                    final char ch = candidate.charAt(c);
+                for (int c = open + 1; c < close; c++) {
+                    final char ch = rawArgs.charAt(c);
                     if (!Character.isJavaIdentifierPart(ch) && ch != '.' && ch != '-' && ch != '/' && ch != ':') {
                         identifier = false;
                         break;

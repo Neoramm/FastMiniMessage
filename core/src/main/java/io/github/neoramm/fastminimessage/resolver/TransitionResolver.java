@@ -63,12 +63,13 @@ public final class TransitionResolver implements ComponentResolver {
         }
         if (idx >= palette.length) result = palette[0];
         final Style own = Style.style().color(result).build();
+        final Style mergedStyle = StyleInheritance.compute(own, inheritedStyle);
         final @Nullable LiteralPreComponent merged =
             StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);
         if (merged != null) return merged;
 
-        if (children.length == 0) return new LiteralPreComponent("", own);
-        return new GroupPreComponent(children).setStyle(own);
+        if (children.length == 0) return new LiteralPreComponent("", mergedStyle);
+        return new GroupPreComponent(children).setStyle(mergedStyle);
     }
 
     @Override

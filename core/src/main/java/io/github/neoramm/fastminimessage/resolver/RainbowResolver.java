@@ -34,7 +34,7 @@ public final class RainbowResolver implements ComponentResolver {
                 }
             }
         }
-        return new GradientPreComponent(NO_COLORS, phase, true, reversed, children);
+        return new GradientPreComponent(NO_COLORS, phase, true, reversed, children).setStyle(inheritedStyle);
     }
 
     @Override

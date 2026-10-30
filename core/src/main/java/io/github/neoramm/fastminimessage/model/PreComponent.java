@@ -49,6 +49,10 @@ public abstract class PreComponent {
         return false;
     }
 
+    public boolean isDirectStyleLeaf() {
+        return false;
+    }
+
     protected final boolean childrenAreStatic() {
         final PreComponent @Nullable [] kids = children;
         if (kids == null) return true;

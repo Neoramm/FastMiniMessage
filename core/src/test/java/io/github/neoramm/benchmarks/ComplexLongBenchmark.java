@@ -41,19 +41,26 @@ public class ComplexLongBenchmark {
     private static final @NotNull String SAMPLE = """
             <bold>Lorem ipsum dolor sit amet</bold>, <red>consectetur adipiscing elit</red>, \
             <gradient:#ff0000:#0000ff>sed do eiusmod tempor incididunt ut labore et dolore magna aliqua</gradient>. \
-            <italic>Ut enim ad minim veniam</italic>, <click:run_command:'/spawn'><hover:show_text:'<gray>hint <bold>x</bold></gray>'>quis nostrud exercitation</hover></click> \
-            ullamco laboris nisi ut aliquip ex ea commodo consequat. <shadow:red:0.4>Duis aute irure dolor in reprehenderit</shadow> \
-            in voluptate velit esse cillum dolore eu fugiat nulla pariatur. <rainbow>Excepteur sint occaecat cupidatat non proident</rainbow>, \
+            <italic>Ut enim ad minim veniam</italic>, <click:run_command:'/spawn'>\
+            <hover:show_text:'<gray>hint <bold>x</bold></gray>'>quis nostrud</hover></click> \
+            ullamco laboris nisi ut aliquip ex ea commodo consequat. \
+            <shadow:red:0.4>Duis aute irure dolor in reprehenderit</shadow> \
+            in voluptate velit esse cillum dolore eu fugiat nulla pariatur. \
+            <rainbow>Excepteur sint occaecat cupidatat non proident</rainbow>, \
             sunt in culpa qui officia deserunt mollit anim id est laborum. <newline/>\
             <bold><red><blue>nested color override</blue></red></bold> \
             <red>a</blue>b malformed</red> </unknown>leftover \
-            <unknown>x</unknown> <transition:red:blue:0.5/> <font:minecraft:default>font text</font> \
+            <unknown>x</unknown> <transition:red:blue:0.5>transition content</transition> \
+            <font:minecraft:default>font text</font> \
             <gradient:red:blue><key:key.jump/> mixed content</gradient> \
             <hover:show_item:'minecraft:diamond':1><bold>item hover</bold></hover> \
-            <lang:chat.type.text:'<red>Steve</red>':hello/> <score:Steve:objective> <selector:@a> \
-            <nbt:block:~ ~ ~:Items> <pride>pride text</pride> <insert:'x'>inserted <u>underlined</u></insert> \
+            <lang:chat.type.text:'<red>Steve</red>':hello/> <score:Steve:objective> <selector:@a:', '> \
+            <nbt:block:0 64 0:Items:true> <pride>pride text</pride> <insert:'x'>inserted <u>underlined</u></insert> \
             <obfuscated>secret</obfuscated> <strikethrough>struck</strikethrough> \
             <gradient:red:blue><gradient:green:yellow>nested gradient</gradient> tail</gradient> \
+            <gradient:0.5>single phase gradient</gradient> <colour:dark_grey>british color</colour> \
+            <click:run_command:'/spawn'>closed with args</click:run_command> \
+            <lang:gui.ok> unclosed translatable text \
             <red>😀 emoji</red> <reset>reset here <bold>bold after reset</bold></reset> \
             </red>unmatched close <unknown/> selfclosing unknown \
             <bold>unclosed bold span continues
@@ -85,6 +92,20 @@ public class ComplexLongBenchmark {
     private static final @NotNull TagResolver @NotNull [] PLACEHOLDERS = {NAME, RANK, STYLED, PARSED};
     private static final @NotNull TagResolver @NotNull [] ALL = {
         NAME, RANK, STYLED, PARSED, UPPER, TINT
+    };
+
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_NAME =
+        io.github.neoramm.fastminimessage.model.TagResolver.inserting("name", "Hector");
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_RANK =
+        io.github.neoramm.fastminimessage.model.TagResolver.inserting("rank", "Admin");
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_UPPER =
+        io.github.neoramm.fastminimessage.model.TagResolver.dynamic("upper",
+            (args, ctx) -> Component.text(args.getFirst().toUpperCase()));
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_TINT =
+        io.github.neoramm.fastminimessage.model.TagResolver.modifying("tint",
+            (current, ctx) -> current.color(NamedTextColor.AQUA));
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver @NotNull [] NATIVE_ALL = {
+        NATIVE_NAME, NATIVE_RANK, NATIVE_UPPER, NATIVE_TINT
     };
 
     private @NotNull MiniMessage miniMessage;
@@ -144,5 +165,15 @@ public class ComplexLongBenchmark {
     @Benchmark
     public @NotNull Component fastCompileAndRenderTagsWithDelegation() {
         return compiler.compile(TAGS_SAMPLE).render(NOBODY, tagsWithDelegation);
+    }
+
+    @Benchmark
+    public @NotNull Component fastRenderNativeTags() {
+        return tagsTree.render(NOBODY, NATIVE_ALL);
+    }
+
+    @Benchmark
+    public @NotNull Component fastCompileAndRenderNativeTags() {
+        return compiler.compile(TAGS_SAMPLE).render(NOBODY, NATIVE_ALL);
     }
 }

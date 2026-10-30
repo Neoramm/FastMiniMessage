@@ -12,9 +12,9 @@ import org.jetbrains.annotations.Nullable;
 
 public final class ColorPreComponent extends PreComponent {
 
-    private final @NotNull TextColor color;
+    private final @Nullable TextColor color;
 
-    public ColorPreComponent(final @NotNull TextColor color, final PreComponent @NotNull [] children) {
+    public ColorPreComponent(final @Nullable TextColor color, final PreComponent @NotNull [] children) {
         this.color = color;
         this.children = children;
     }
@@ -24,7 +24,7 @@ public final class ColorPreComponent extends PreComponent {
         final TextComponent.Builder builder = Component.text();
         final @Nullable Style style = computedStyle;
         if (style != null && !style.isEmpty()) builder.style(style);
-        builder.color(color);
+        if (color != null) builder.color(color);
         renderChildrenInto(pointered, builder, scope);
         return builder.build();
     }

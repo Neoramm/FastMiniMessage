@@ -9,6 +9,7 @@ import io.github.neoramm.fastminimessage.model.RuntimeTagContext;
 import io.github.neoramm.fastminimessage.model.RuntimeTagResolver;
 import io.github.neoramm.fastminimessage.model.TagResolver;
 import io.github.neoramm.fastminimessage.model.TagResolver.DynamicTag;
+import net.kyori.adventure.identity.Identity;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
@@ -56,7 +57,6 @@ public class DeferredTagPreComponent extends PreComponent {
 
     @Override
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
-        final String substituted = rawArgsTemplate.isEmpty() ? "" : substitute(rawArgsTemplate, scope, pointered);
         final TagResolver resolver = scope.resolveTag(tagName);
         if (resolver != null) {
             if (resolver.isModifying()) {
@@ -86,6 +86,7 @@ public class DeferredTagPreComponent extends PreComponent {
             }
             final DynamicTag dynamic = resolver.dynamicTag();
             if (dynamic != null) {
+                final String substituted = resolveArgs(scope, pointered);
                 final Arguments args = Arguments.parse(substituted);
                 final Component resolved = dynamic.resolve(args, pointered);
                 if (resolved != null) {
@@ -104,6 +105,7 @@ public class DeferredTagPreComponent extends PreComponent {
             }
             final RuntimeTagResolver custom = resolver.customResolver();
             if (custom != null && compiler != null) {
+                final String substituted = resolveArgs(scope, pointered);
                 final RuntimeTagContext context = new RuntimeTagContext(tagName, substituted, getChildren(),
                     hasArguments, selfClosing, explicitlyClosed, pointered, scope, compiler);
                 final Component resolved = custom.render(context);
@@ -114,6 +116,22 @@ public class DeferredTagPreComponent extends PreComponent {
                 }
             }
         }
+        if (pointered != null && ("player".equalsIgnoreCase(tagName) || "name".equalsIgnoreCase(tagName))) {
+            final java.util.Optional<String> name = pointered.get(Identity.NAME);
+            if (name.isPresent()) {
+                final Style style = computedStyle;
+                final Component component = Component.text(name.get());
+                final Component styled = style == null || style.isEmpty() ? component : component.style(style);
+                final PreComponent @Nullable [] kids = children;
+                if (kids == null || kids.length == 0) return styled;
+                final TextComponent.Builder builder = Component.text();
+                if (style != null && !style.isEmpty()) builder.style(style);
+                builder.append(styled);
+                renderChildrenInto(pointered, builder, scope);
+                return builder.build();
+            }
+        }
+        final String substituted = resolveArgs(scope, pointered);
         if (compiler != null && compiler.findResolver(tagName) != null) {
             final CachedResolution cache = this.cachedResolution;
             final PreComponent resolved;
@@ -143,7 +161,11 @@ public class DeferredTagPreComponent extends PreComponent {
     public void renderInto(final @Nullable Pointered pointered, final @NotNull TextComponent.Builder builder,
         final @NotNull RenderScope scope) {
         final TagResolver resolver = scope.resolveTag(tagName);
-        if (resolver != null && !resolver.isModifying()) {
+        if (resolver != null) {
+            if (resolver.isModifying() || resolver.customResolver() != null) {
+                builder.append(render(pointered, scope));
+                return;
+            }
             final PreComponent pre = resolver.preComponent();
             if (pre != null) {
                 final Component rendered = pre.render(pointered, scope);
@@ -157,9 +179,7 @@ public class DeferredTagPreComponent extends PreComponent {
             }
             final DynamicTag dynamic = resolver.dynamicTag();
             if (dynamic != null) {
-                final String substituted = rawArgsTemplate.isEmpty()
-                    ? ""
-                    : substitute(rawArgsTemplate, scope, pointered);
+                final String substituted = resolveArgs(scope, pointered);
                 final Arguments args = Arguments.parse(substituted);
                 final Component resolved = dynamic.resolve(args, pointered);
                 if (resolved != null) {
@@ -173,8 +193,19 @@ public class DeferredTagPreComponent extends PreComponent {
                 }
             }
         }
+        if (pointered != null && ("player".equalsIgnoreCase(tagName) || "name".equalsIgnoreCase(tagName))) {
+            final java.util.Optional<String> name = pointered.get(Identity.NAME);
+            if (name.isPresent()) {
+                final Style style = computedStyle;
+                final Component component = Component.text(name.get());
+                final Component styled = style == null || style.isEmpty() ? component : component.style(style);
+                builder.append(styled);
+                renderChildrenInto(pointered, builder, scope);
+                return;
+            }
+        }
         if (compiler != null && compiler.findResolver(tagName) != null) {
-            final String substituted = rawArgsTemplate.isEmpty() ? "" : substitute(rawArgsTemplate, scope, pointered);
+            final String substituted = resolveArgs(scope, pointered);
             final CachedResolution cache = this.cachedResolution;
             final PreComponent resolved;
             if (cache != null && cache.args().equals(substituted)) {
@@ -188,6 +219,11 @@ public class DeferredTagPreComponent extends PreComponent {
             return;
         }
         builder.append(render(pointered, scope));
+    }
+
+    private @NotNull String resolveArgs(final @NotNull RenderScope scope, final @Nullable Pointered pointered) {
+        if (rawArgsTemplate.isEmpty()) return "";
+        return substitute(rawArgsTemplate, scope, pointered);
     }
 
     private @NotNull Component renderChildren(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
@@ -220,7 +256,7 @@ public class DeferredTagPreComponent extends PreComponent {
     private static @NotNull String substitute(
         final @NotNull String template, final @NotNull RenderScope scope, final @Nullable Pointered pointered
     ) {
-        if (scope.isEmpty()) return template;
+        if (scope.isEmpty() || template.indexOf('<') == -1) return template;
         final StringBuilder builder = new StringBuilder(template.length());
         int i = 0;
         while (i < template.length()) {

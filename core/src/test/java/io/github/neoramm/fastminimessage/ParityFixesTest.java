@@ -440,6 +440,68 @@ final class ParityFixesTest {
         }
     }
 
+    @Test
+    void escapedBackslashFollowedByTag() {
+        final String[] samples = {
+            "\\\\<red>hello</red>",
+            "\\\\\\\\<blue>world</blue>",
+            "\\\\<bold>test</bold>\\\\"
+        };
+        for (final String sample : samples) {
+            final Component mm = miniMessage.deserialize(sample);
+            final Component fmm = compiler.compile(sample).render(NOBODY);
+            assertEquals(ComponentComparison.expression(mm), ComponentComparison.expression(fmm), sample);
+        }
+    }
+
+    @Test
+    void uppercaseColorInTagArguments() {
+        final String[] samples = {
+            "<color:RED>text</color>",
+            "<c:BLUE>text</c>",
+            "<colour:DARK_RED>text</colour>",
+            "<color:Dark_Purple>text</color>"
+        };
+        for (final String sample : samples) {
+            final Component mm = miniMessage.deserialize(sample);
+            final Component fmm = compiler.compile(sample).render(NOBODY);
+            assertEquals(ComponentComparison.expression(mm), ComponentComparison.expression(fmm), sample);
+        }
+    }
+
+    @Test
+    void unquotedUrlInClickTag() {
+        final String sample = "<click:open_url:https://example.com>Click here</click>";
+        final Component mm = miniMessage.deserialize(sample);
+        final Component fmm = compiler.compile(sample).render(NOBODY);
+        assertEquals(ComponentComparison.expression(mm), ComponentComparison.expression(fmm));
+    }
+
+    @Test
+    void dynamicGradientInheritsStyle() {
+        final PreComponentTree tree = compiler.compile("<bold><gradient:'<c1>':'<c2>'>text</gradient></bold>");
+        final Component rendered = tree.render(
+            NOBODY,
+            Placeholder.ofUnparsed("c1", "red"),
+            Placeholder.ofUnparsed("c2", "blue")
+        );
+        final Component mm = miniMessage.deserialize("<bold><gradient:red:blue>text</gradient></bold>");
+        assertEquals(ComponentComparison.expression(mm), ComponentComparison.expression(rendered));
+    }
+
+    @Test
+    void dynamicTransitionInheritsStyle() {
+        final PreComponentTree tree = compiler.compile(
+            "<bold><transition:red:blue:'<phase>'>part1<yellow>part2</yellow></transition></bold>");
+        final Component rendered = tree.render(
+            NOBODY,
+            Placeholder.ofUnparsed("phase", "0.5")
+        );
+        final Component mm = miniMessage.deserialize(
+            "<bold><transition:red:blue:0.5>part1<yellow>part2</yellow></transition></bold>");
+        assertEquals(ComponentComparison.expression(mm), ComponentComparison.expression(rendered));
+    }
+
     private static @NotNull String plain(final @NotNull Component component) {
         final StringBuilder text = new StringBuilder();
         if (component instanceof final TextComponent textComponent) text.append(textComponent.content());

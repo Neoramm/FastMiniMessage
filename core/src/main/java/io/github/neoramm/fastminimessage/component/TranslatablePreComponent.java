@@ -56,6 +56,11 @@ public final class TranslatablePreComponent extends PreComponent {
     }
 
     @Override
+    public boolean isDirectStyleLeaf() {
+        return true;
+    }
+
+    @Override
     public @NotNull PreComponent setStyle(final @Nullable Style style) {
         super.setStyle(style);
         this.cachedComponent = null;

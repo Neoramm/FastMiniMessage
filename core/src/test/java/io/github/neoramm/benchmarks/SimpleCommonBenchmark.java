@@ -55,10 +55,34 @@ public class SimpleCommonBenchmark {
     private static final @NotNull TagResolver @NotNull [] PLACEHOLDERS = {NAME, RANK};
     private static final @NotNull TagResolver @NotNull [] ALL = {NAME, RANK, UPPER, TINT};
 
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_NAME =
+        io.github.neoramm.fastminimessage.model.TagResolver.inserting("name", "Hector");
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_RANK =
+        io.github.neoramm.fastminimessage.model.TagResolver.inserting("rank", "Admin");
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_UPPER =
+        io.github.neoramm.fastminimessage.model.TagResolver.dynamic("upper",
+            (args, ctx) -> Component.text(args.getFirst().toUpperCase()));
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_TINT =
+        io.github.neoramm.fastminimessage.model.TagResolver.modifying("tint",
+            (current, ctx) -> current.color(NamedTextColor.AQUA));
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver @NotNull [] NATIVE_ALL = {
+        NATIVE_NAME, NATIVE_RANK, NATIVE_UPPER, NATIVE_TINT
+    };
+
+    private static final @NotNull String UNCLOSED_CHAT_SAMPLE = "<prefix> <name><colon> <message>";
+    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver @NotNull [] CHAT_RESOLVERS = {
+        io.github.neoramm.fastminimessage.model.TagResolver.resolver("prefix",
+            Component.text("[VIP]", NamedTextColor.GOLD)),
+        io.github.neoramm.fastminimessage.model.TagResolver.inserting("name", "Hector"),
+        io.github.neoramm.fastminimessage.model.TagResolver.inserting("colon", ":"),
+        io.github.neoramm.fastminimessage.model.TagResolver.inserting("message", "Welcome to the server!")
+    };
+
     private @NotNull MiniMessage miniMessage;
     private @NotNull MiniMessageCompiler compiler;
     private @NotNull PreComponentTree tree;
     private @NotNull PreComponentTree tagsTree;
+    private @NotNull PreComponentTree unclosedChatTree;
     private @NotNull RuntimeTagResolver placeholderTags;
     private @NotNull RuntimeTagResolver tagsLiteralFallback;
     private @NotNull RuntimeTagResolver tagsWithDelegation;
@@ -69,6 +93,7 @@ public class SimpleCommonBenchmark {
         compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
         tree = compiler.compile(SAMPLE);
         tagsTree = compiler.compile(TAGS_SAMPLE);
+        unclosedChatTree = compiler.compile(UNCLOSED_CHAT_SAMPLE);
         placeholderTags = MiniMessageTags.of(PLACEHOLDERS);
         tagsLiteralFallback = MiniMessageTags.of(ALL);
         tagsWithDelegation = MiniMessageTags.of(miniMessage, ALL);
@@ -112,5 +137,20 @@ public class SimpleCommonBenchmark {
     @Benchmark
     public @NotNull Component fastCompileAndRenderTagsWithDelegation() {
         return compiler.compile(TAGS_SAMPLE).render(NOBODY, tagsWithDelegation);
+    }
+
+    @Benchmark
+    public @NotNull Component fastRenderNativeTags() {
+        return tagsTree.render(NOBODY, NATIVE_ALL);
+    }
+
+    @Benchmark
+    public @NotNull Component fastCompileAndRenderNativeTags() {
+        return compiler.compile(TAGS_SAMPLE).render(NOBODY, NATIVE_ALL);
+    }
+
+    @Benchmark
+    public @NotNull Component fastRenderUnclosedChat() {
+        return unclosedChatTree.render(NOBODY, CHAT_RESOLVERS);
     }
 }

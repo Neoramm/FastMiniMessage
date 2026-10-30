@@ -40,6 +40,11 @@ public final class InlinePreComponent extends PreComponent {
     }
 
     @Override
+    public boolean isDirectStyleLeaf() {
+        return true;
+    }
+
+    @Override
     public @NotNull PreComponent deepCopy() {
         return new InlinePreComponent(component).setStyle(computedStyle);
     }

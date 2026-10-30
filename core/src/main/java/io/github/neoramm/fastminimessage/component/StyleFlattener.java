@@ -117,13 +117,7 @@ public final class StyleFlattener {
     }
 
     private static boolean isDirectStyleLeaf(final @NotNull PreComponent node) {
-        return node instanceof InlinePreComponent
-            || node instanceof KeybindPreComponent
-            || node instanceof TranslatablePreComponent
-            || node instanceof StaticComponentPreComponent
-            || node instanceof SelectorPreComponent
-            || node instanceof NbtPreComponent
-            || "PapiPreComponent".equals(node.getClass().getSimpleName());
+        return node.isDirectStyleLeaf();
     }
 
     private static @NotNull Style merge(final @NotNull Style inherited, final @NotNull Style own) {

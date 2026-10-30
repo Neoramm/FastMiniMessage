@@ -28,6 +28,11 @@ final class PapiPreComponent extends PreComponent {
     }
 
     @Override
+    public boolean isDirectStyleLeaf() {
+        return true;
+    }
+
+    @Override
     public @NotNull PreComponent deepCopy() {
         return new PapiPreComponent(renderer, expression, computedStyle);
     }

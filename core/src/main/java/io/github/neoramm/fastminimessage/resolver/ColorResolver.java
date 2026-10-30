@@ -35,11 +35,15 @@ public final class ColorResolver implements ComponentResolver {
         final TextColor targetColor = color != null
             ? color
             : (name.startsWith("#") ? resolveColor(name) : resolveColor(args.getFirst(null)));
+        if (name.startsWith("#") && targetColor == null) {
+            throw new IllegalArgumentException("Unable to parse a color from '" + name + "'");
+        }
         final Style own = Style.style().color(targetColor).build();
+        final Style mergedStyle = StyleInheritance.compute(own, inheritedStyle);
         final @Nullable LiteralPreComponent merged =
             StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);
         if (merged != null) return merged;
-        return new ColorPreComponent(targetColor, children);
+        return new ColorPreComponent(targetColor, children).setStyle(mergedStyle);
     }
 
     static @Nullable TextColor resolveColor(final @Nullable String colorName) {
@@ -47,7 +51,7 @@ public final class ColorResolver implements ComponentResolver {
         if (colorName.charAt(0) == TextColor.HEX_CHARACTER) return TextColor.fromHexString(colorName);
         if ("grey".equalsIgnoreCase(colorName)) return NamedTextColor.GRAY;
         if ("dark_grey".equalsIgnoreCase(colorName)) return NamedTextColor.DARK_GRAY;
-        return NamedTextColor.NAMES.value(colorName);
+        return NamedTextColor.NAMES.value(colorName.toLowerCase(Locale.ROOT));
     }
 
     @Override

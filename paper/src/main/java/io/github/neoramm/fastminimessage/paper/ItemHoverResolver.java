@@ -31,9 +31,7 @@ final class ItemHoverResolver implements ComponentResolver {
         if (children.length == 0) return new LiteralPreComponent("", inheritedStyle);
         final String reference = Objects.requireNonNullElse(args.getFirst(""), "");
         final HoverEvent<?> event = factory.create(reference, args.getInt(1, 1));
-        return new HoverPreComponent(
-            (final @Nullable Pointered pointered, final @NotNull RenderScope scope) -> event, children
-        ).setStyle(inheritedStyle);
+        return new HoverPreComponent(event, children).setStyle(inheritedStyle);
     }
 
     @Override

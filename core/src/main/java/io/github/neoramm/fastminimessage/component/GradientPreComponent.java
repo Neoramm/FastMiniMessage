@@ -230,7 +230,31 @@ public final class GradientPreComponent extends PreComponent {
         final @Nullable StyleCache cache = styleCache;
         if (cache != null && cache.length() == length && cache.base().equals(base)) return cache.styles();
         final Style @NotNull [] styles = new Style[length];
-        for (int i = 0; i < length; i++) styles[i] = base.color(colorAt(i, length));
+        if (rainbow) {
+            for (int i = 0; i < length; i++) {
+                final int effective = reversed ? length - 1 - i : i;
+                float hue = (float) effective / length + phase;
+                hue %= 1.0f;
+                if (hue < 0.0f) hue += 1.0f;
+                styles[i] = base.color(TextColor.color(HSVLike.hsvLike(hue, 1.0f, 1.0f)));
+            }
+        } else if (colors.length == 1) {
+            final Style single = base.color(colors[0]);
+            for (int i = 0; i < length; i++) styles[i] = single;
+        } else {
+            final double multiplier = length <= 1 ? 0.0 : (double) (colors.length - 1) / (length - 1);
+            final double scaledPhase = phase * (colors.length - 1);
+            final int numColors = colors.length;
+            for (int i = 0; i < length; i++) {
+                final double position = (i * multiplier) + scaledPhase;
+                final int lowUnclamped = (int) Math.floor(position);
+                final int low = ((lowUnclamped % numColors) + numColors) % numColors;
+                final int highUnclamped = (int) Math.ceil(position);
+                final int high = ((highUnclamped % numColors) + numColors) % numColors;
+                final float fraction = (float) position - lowUnclamped;
+                styles[i] = base.color(TextColor.lerp(fraction, colors[low], colors[high]));
+            }
+        }
         final StyleCache updated = new StyleCache(base, length, styles);
         styleCache = updated;
         return updated.styles();

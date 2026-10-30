@@ -103,10 +103,11 @@ public final class RenderScope {
     public @Nullable TagResolver resolveTag(final @NotNull String name) {
         final TagResolver @Nullable [] arr = resolvers;
         if (arr == null) return null;
-        for (final TagResolver resolver : arr) {
+        for (int i = 0; i < arr.length; i++) {
+            final TagResolver resolver = arr[i];
             if (resolver == null) continue;
             final String resName = resolver.name();
-            if (name.equalsIgnoreCase(resName)) return resolver;
+            if (name.equals(resName) || name.equalsIgnoreCase(resName)) return resolver;
             final RuntimeTagResolver custom = resolver.customResolver();
             if (custom != null && custom.has(name)) return resolver;
         }
