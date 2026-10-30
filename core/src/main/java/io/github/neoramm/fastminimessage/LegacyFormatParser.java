@@ -22,11 +22,40 @@ public final class LegacyFormatParser {
         if (input == null) return "";
         if (input.isEmpty()) return input;
         if (input.indexOf('&') == -1) return input;
-        final StringBuilder out = new StringBuilder(input.length() + 16);
+        final StringBuilder out = new StringBuilder(input.length() + (input.length() >> 2) + 16);
         final int n = input.length();
         int i = 0;
         while (i < n) {
             final char c = input.charAt(i);
+            if (c == '\\' && i + 1 < n) {
+                final char next = input.charAt(i + 1);
+                if (next == '&') {
+                    out.append('&');
+                    i += 2;
+                    continue;
+                }
+                if (next == '\\') {
+                    out.append("\\\\");
+                    i += 2;
+                    continue;
+                }
+                if (next == '<') {
+                    out.append("\\<");
+                    i += 2;
+                    continue;
+                }
+                out.append(c);
+                i++;
+                continue;
+            }
+            if (c == '<') {
+                final int tagEnd = findTagEnd(input, i);
+                if (tagEnd != -1) {
+                    out.append(input, i, tagEnd + 1);
+                    i = tagEnd + 1;
+                    continue;
+                }
+            }
             if (c == '&' && i + 1 < n) {
                 if (input.charAt(i + 1) == '#' && i + 7 < n) {
                     if (isHex(input, i + 2, i + 8)) {
@@ -73,6 +102,30 @@ public final class LegacyFormatParser {
             i++;
         }
         return out.toString();
+    }
+
+    private static int findTagEnd(final @NotNull String input, final int start) {
+        if (start + 1 >= input.length()) return -1;
+        final char next = input.charAt(start + 1);
+        if (next != '/' && next != '!' && next != '#' && next != '?'
+            && !((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z'))) {
+            return -1;
+        }
+        char quote = 0;
+        int unclosedGreater = -1;
+        for (int i = start + 1; i < input.length(); i++) {
+            final char c = input.charAt(i);
+            if (c == '\\' && i + 1 < input.length()) {
+                i++;
+                continue;
+            }
+            if (quote == 0 && (c == '\'' || c == '"')) quote = c;
+            else if (quote != 0 && c == quote) quote = 0;
+            else if (c == '<' && quote == 0) return -1;
+            else if (c == '>' && quote == 0) return i;
+            else if (c == '>' && unclosedGreater == -1) unclosedGreater = i;
+        }
+        return quote != 0 ? unclosedGreater : -1;
     }
 
     private static boolean isColorCode(final char code) {

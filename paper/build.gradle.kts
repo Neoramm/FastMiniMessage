@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "io.github.neoramm"
-version = providers.gradleProperty("version").getOrElse("1.5.0")
+version = providers.gradleProperty("version").getOrElse("1.5.1")
 
 base {
     archivesName.set("fastminimessage-paper")

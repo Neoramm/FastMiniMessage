@@ -17,7 +17,8 @@ public final class InsertResolver implements ComponentResolver {
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        final String placeholder = args.getFirst("");
+        if (args.isEmpty()) throw new IllegalArgumentException("An insertion string is required");
+        final String placeholder = args.getFirst();
         final Style own = Style.style().insertion(placeholder).build();
         final @Nullable LiteralPreComponent merged =
             StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);

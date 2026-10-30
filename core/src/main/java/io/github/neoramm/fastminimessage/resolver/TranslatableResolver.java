@@ -17,7 +17,7 @@ public final class TranslatableResolver implements ComponentResolver {
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        if (args.isEmpty()) return new LiteralPreComponent("<" + name + ">", inheritedStyle);
+        if (args.isEmpty()) throw new IllegalArgumentException("A translation key is required");
         final String key = args.getFirst();
         final PreComponentTree @Nullable [] translatableArgs =
             args.size() > 1 ? new PreComponentTree[args.size() - 1] : null;

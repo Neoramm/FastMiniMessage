@@ -47,6 +47,10 @@ public final class DefaultTagScanner implements TagScanner {
                     }
                     final TagParts closeParts = splitTag(content.substring(1));
                     final String closeTagName = closeParts.tagName();
+                    if (!isValidTagName(closeTagName)) {
+                        textBuffer.append(normalized, tagStart, end + 1);
+                        continue;
+                    }
                     final String closeArgs = closeParts.rawArgs();
                     if ("reset".equalsIgnoreCase(closeTagName)) continue;
                     boolean open = false;
@@ -64,6 +68,10 @@ public final class DefaultTagScanner implements TagScanner {
                 } else {
                     final TagParts parts = splitTag(content);
                     final String tagName = parts.tagName();
+                    if (!isValidTagName(tagName)) {
+                        textBuffer.append(normalized, tagStart, end + 1);
+                        continue;
+                    }
                     final boolean hasArguments = parts.rawArgs() != null;
                     final String rawArgs = hasArguments ? parts.rawArgs() : "";
                     if ("reset".equalsIgnoreCase(tagName)) {
@@ -151,6 +159,7 @@ public final class DefaultTagScanner implements TagScanner {
 
     private int findTagEnd(final @NotNull String input, final int start) {
         char quote = 0;
+        int unclosedGreater = -1;
         for (int i = start + 1; i < input.length(); i++) {
             final char c = input.charAt(i);
             if (c == '\\' && i + 1 < input.length()) {
@@ -161,8 +170,9 @@ public final class DefaultTagScanner implements TagScanner {
             else if (quote != 0 && c == quote) quote = 0;
             else if (c == '<' && quote == 0) return -1;
             else if (c == '>' && quote == 0) return i;
+            else if (c == '>' && unclosedGreater == -1) unclosedGreater = i;
         }
-        return -1;
+        return quote != 0 ? unclosedGreater : -1;
     }
 
     private record TagParts(@NotNull String tagName, @Nullable String rawArgs) {
@@ -173,6 +183,22 @@ public final class DefaultTagScanner implements TagScanner {
         final int colon = content.indexOf(':');
         if (colon == -1) return new TagParts(content, null);
         return new TagParts(content.substring(0, colon), content.substring(colon + 1));
+    }
+
+    private static boolean isValidTagName(final @NotNull String name) {
+        if (name.isEmpty()) return false;
+        int start = 0;
+        final char first = name.charAt(0);
+        if (first == '!' || first == '?' || first == '#') start = 1;
+        if (start == name.length()) return false;
+        for (int i = start; i < name.length(); i++) {
+            final char c = name.charAt(i);
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+                || c == '_' || c == '-')) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static final class OpenTag {

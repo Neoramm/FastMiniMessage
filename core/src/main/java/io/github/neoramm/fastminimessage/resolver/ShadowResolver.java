@@ -13,6 +13,8 @@ import net.kyori.adventure.text.format.TextColor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Locale;
+
 import static io.github.neoramm.fastminimessage.resolver.ColorResolver.resolveColor;
 
 public final class ShadowResolver implements ComponentResolver {
@@ -22,8 +24,8 @@ public final class ShadowResolver implements ComponentResolver {
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        if (args.isEmpty()) return new LiteralPreComponent("", inheritedStyle);
-        final String colorString = args.getFirst().toLowerCase();
+        if (args.isEmpty()) throw new IllegalArgumentException("A shadow color is required");
+        final String colorString = args.getFirst().toLowerCase(Locale.ROOT);
         final ShadowColor color;
         if (colorString.startsWith(TextColor.HEX_PREFIX) && colorString.length() == 9) {
             color = ShadowColor.fromHexString(colorString);

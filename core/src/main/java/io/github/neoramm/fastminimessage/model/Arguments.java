@@ -22,6 +22,11 @@ public final class Arguments implements Iterator<String> {
         this.args = args;
     }
 
+    public @NotNull Arguments copy() {
+        if (args.length == 0) return EMPTY;
+        return new Arguments(args);
+    }
+
     /**
      * Parses arguments split by {@code ':'}, honouring single and double quotes.
      *

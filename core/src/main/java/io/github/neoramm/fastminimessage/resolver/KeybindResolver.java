@@ -15,7 +15,8 @@ public final class KeybindResolver implements ComponentResolver {
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        final String keybind = args.getFirst("key.jump");
+        if (args.isEmpty()) throw new IllegalArgumentException("A keybind is required");
+        final String keybind = args.getFirst();
         return new KeybindPreComponent(keybind, inheritedStyle);
     }
 

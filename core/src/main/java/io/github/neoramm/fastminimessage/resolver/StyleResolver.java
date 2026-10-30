@@ -25,8 +25,13 @@ public final class StyleResolver implements ComponentResolver {
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        final boolean negate = name.startsWith("!");
-        final Style own = Style.style().decoration(decoration, !negate).build();
+        boolean state = !name.startsWith("!");
+        if (!args.isEmpty()) {
+            final String arg = args.getFirst();
+            if ("false".equalsIgnoreCase(arg) || "off".equalsIgnoreCase(arg) || "no".equalsIgnoreCase(arg)) state = false;
+            else if ("true".equalsIgnoreCase(arg) || "on".equalsIgnoreCase(arg) || "yes".equalsIgnoreCase(arg)) state = true;
+        }
+        final Style own = Style.style().decoration(decoration, state).build();
         final Style merged = StyleInheritance.compute(own, inheritedStyle);
         if (children.length == 0) return new LiteralPreComponent("", merged);
         final @Nullable LiteralPreComponent styledLiteral =

@@ -12,6 +12,8 @@ import net.kyori.adventure.text.format.Style;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Locale;
+
 public final class NbtResolver implements ComponentResolver {
     private static final String @NotNull [] NAMES = {"nbt", "data"};
     private static final @NotNull String BLOCK = "block";
@@ -24,7 +26,7 @@ public final class NbtResolver implements ComponentResolver {
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
         if (args.isEmpty()) throw new IllegalArgumentException("a type of block, entity, or storage is required");
-        final String type = args.getFirst().toLowerCase();
+        final String type = args.getFirst().toLowerCase(Locale.ROOT);
         @Nullable BlockNBTComponent.Pos pos = null;
         @Nullable String selector = null;
         @Nullable Key storage = null;
@@ -56,10 +58,13 @@ public final class NbtResolver implements ComponentResolver {
         if (args.size() > idx) {
             final String popped = args.get(idx);
             idx++;
-            if (INTERPRET.equalsIgnoreCase(popped)) interpret = true;
+            if (INTERPRET.equalsIgnoreCase(popped) || "true".equalsIgnoreCase(popped)) interpret = true;
             else {
                 separator = compiler.compile(popped);
-                if (args.size() > idx && INTERPRET.equalsIgnoreCase(args.get(idx))) interpret = true;
+                if (args.size() > idx
+                    && (INTERPRET.equalsIgnoreCase(args.get(idx)) || "true".equalsIgnoreCase(args.get(idx)))) {
+                    interpret = true;
+                }
             }
         }
         final NbtPreComponent preComponent = switch (type) {

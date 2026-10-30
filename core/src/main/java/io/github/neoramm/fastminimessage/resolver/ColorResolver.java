@@ -38,7 +38,7 @@ public final class ColorResolver implements ComponentResolver {
         if (name.startsWith("#") && targetColor == null) {
             throw new IllegalArgumentException("Unable to parse a color from '" + name + "'");
         }
-        final Style own = Style.style().color(targetColor).build();
+        final Style own = targetColor == null ? Style.empty() : Style.style().color(targetColor).build();
         final Style mergedStyle = StyleInheritance.compute(own, inheritedStyle);
         final @Nullable LiteralPreComponent merged =
             StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);

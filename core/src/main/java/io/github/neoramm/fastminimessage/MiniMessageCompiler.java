@@ -69,7 +69,7 @@ public final class MiniMessageCompiler {
      * @return the compiled tree, or an empty tree when the input is null
      */
     public @NotNull PreComponentTree compile(final @Nullable String miniMessageString) {
-        if (miniMessageString == null) return PreComponentTree.EMPTY;
+        if (miniMessageString == null || miniMessageString.isEmpty()) return PreComponentTree.EMPTY;
         final List<TagNode> roots = flattenSelfClosing(scanner.scan(miniMessageString));
         final List<PreComponent> components = new ArrayList<>();
         for (final TagNode root : roots) components.add(resolveStyled(buildStyledNode(root, Style.empty())));
@@ -106,6 +106,8 @@ public final class MiniMessageCompiler {
                     node.explicitlyClosed()
                 ));
                 result.addAll(flattenedChildren);
+            } else if (flattenedChildren == node.children() && isSelfClosing == node.isSelfClosing()) {
+                result.add(node);
             } else {
                 result.add(new TagNode(
                     node.tagName(),
@@ -123,7 +125,7 @@ public final class MiniMessageCompiler {
     }
 
     private @NotNull StyledNode buildStyledNode(final @NotNull TagNode node, final @NotNull Style computed) {
-        final Style childInherited = "reset".equals(node.tagName()) ? Style.empty() : computed;
+        final Style childInherited = "reset".equalsIgnoreCase(node.tagName()) ? Style.empty() : computed;
 
         final List<StyledNode> styledChildren = new ArrayList<>(node.children().size());
         for (final TagNode child : node.children()) styledChildren.add(buildStyledNode(child, childInherited));
@@ -159,7 +161,7 @@ public final class MiniMessageCompiler {
         } catch (final RuntimeException | LinkageError unsupported) {
             final String raw = openTagOf(node.tagName(), node.rawArgs(), node.hasArguments());
             if (children.length == 0 && !node.explicitlyClosed()) {
-                return new UnparsedPreComponent(raw, raw).setStyle(style);
+                return new UnparsedPreComponent(node.tagName(), raw, raw).setStyle(style);
             }
             return new DeferredTagPreComponent(node.tagName(), node.rawArgs(), children, style,
                 node.hasArguments(), node.isSelfClosing(), node.explicitlyClosed(), null);
@@ -199,7 +201,7 @@ public final class MiniMessageCompiler {
                 }
             }
             final String selfTag = selfTagOf(tagName, rawArgs, hasArguments);
-            return new UnparsedPreComponent(tagName, selfTag).setStyle(inheritedStyle);
+            return new UnparsedPreComponent(tagName, selfTag, selfTag).setStyle(inheritedStyle);
         }
         if (resolver == null) {
             return new DeferredTagPreComponent(tagName, rawArgs, children, inheritedStyle, hasArguments,

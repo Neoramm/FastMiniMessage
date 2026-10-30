@@ -21,6 +21,7 @@ public class DeferredTagPreComponent extends PreComponent {
 
     private final @NotNull String tagName;
     private final @NotNull String rawArgsTemplate;
+    private final @Nullable Arguments staticArgs;
     private final boolean hasArguments;
     private final boolean selfClosing;
     private final boolean explicitlyClosed;
@@ -39,6 +40,9 @@ public class DeferredTagPreComponent extends PreComponent {
     ) {
         this.tagName = tagName;
         this.rawArgsTemplate = rawArgsTemplate;
+        this.staticArgs = rawArgsTemplate.isEmpty()
+            ? Arguments.EMPTY
+            : (rawArgsTemplate.indexOf('<') == -1 ? Arguments.parse(rawArgsTemplate) : null);
         this.hasArguments = hasArguments;
         this.selfClosing = selfClosing;
         this.explicitlyClosed = explicitlyClosed;
@@ -86,8 +90,7 @@ public class DeferredTagPreComponent extends PreComponent {
             }
             final DynamicTag dynamic = resolver.dynamicTag();
             if (dynamic != null) {
-                final String substituted = resolveArgs(scope, pointered);
-                final Arguments args = Arguments.parse(substituted);
+                final Arguments args = staticArgs != null ? staticArgs.copy() : Arguments.parse(resolveArgs(scope, pointered));
                 final Component resolved = dynamic.resolve(args, pointered);
                 if (resolved != null) {
                     final Style style = computedStyle;
@@ -179,8 +182,7 @@ public class DeferredTagPreComponent extends PreComponent {
             }
             final DynamicTag dynamic = resolver.dynamicTag();
             if (dynamic != null) {
-                final String substituted = resolveArgs(scope, pointered);
-                final Arguments args = Arguments.parse(substituted);
+                final Arguments args = staticArgs != null ? staticArgs.copy() : Arguments.parse(resolveArgs(scope, pointered));
                 final Component resolved = dynamic.resolve(args, pointered);
                 if (resolved != null) {
                     final Style style = computedStyle;
@@ -222,7 +224,7 @@ public class DeferredTagPreComponent extends PreComponent {
     }
 
     private @NotNull String resolveArgs(final @NotNull RenderScope scope, final @Nullable Pointered pointered) {
-        if (rawArgsTemplate.isEmpty()) return "";
+        if (rawArgsTemplate.isEmpty() || rawArgsTemplate.indexOf('<') == -1) return rawArgsTemplate;
         return substitute(rawArgsTemplate, scope, pointered);
     }
 
@@ -256,7 +258,7 @@ public class DeferredTagPreComponent extends PreComponent {
     private static @NotNull String substitute(
         final @NotNull String template, final @NotNull RenderScope scope, final @Nullable Pointered pointered
     ) {
-        if (scope.isEmpty() || template.indexOf('<') == -1) return template;
+        if (template.indexOf('<') == -1) return template;
         final StringBuilder builder = new StringBuilder(template.length());
         int i = 0;
         while (i < template.length()) {
@@ -272,13 +274,34 @@ public class DeferredTagPreComponent extends PreComponent {
                 break;
             }
             final String candidate = template.substring(open + 1, close);
-            final PreComponent placeholder = scope.resolve(candidate);
-            if (placeholder != null) {
-                final Component rendered = placeholder.render(pointered, scope);
-                builder.append(plainText(rendered));
-            } else {
-                builder.append(template, open, close + 1);
+            final TagResolver resolver = scope.resolveTag(candidate);
+            if (resolver != null) {
+                final PreComponent pre = resolver.preComponent();
+                if (pre != null) {
+                    final Component rendered = pre.render(pointered, scope);
+                    builder.append(plainText(rendered));
+                    i = close + 1;
+                    continue;
+                }
+                final DynamicTag dynamic = resolver.dynamicTag();
+                if (dynamic != null) {
+                    final Component rendered = dynamic.resolve(Arguments.EMPTY, pointered);
+                    if (rendered != null) {
+                        builder.append(plainText(rendered));
+                        i = close + 1;
+                        continue;
+                    }
+                }
             }
+            if (pointered != null && ("player".equalsIgnoreCase(candidate) || "name".equalsIgnoreCase(candidate))) {
+                final java.util.Optional<String> name = pointered.get(Identity.NAME);
+                if (name.isPresent()) {
+                    builder.append(name.get());
+                    i = close + 1;
+                    continue;
+                }
+            }
+            builder.append(template, open, close + 1);
             i = close + 1;
         }
         return builder.toString();

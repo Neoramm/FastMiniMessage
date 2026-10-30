@@ -9,6 +9,8 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Locale;
+
 /**
  * Example (non-registered) component modifiers for documentation purposes.
  */
@@ -25,7 +27,7 @@ public final class ComponentModifiers {
 
     public static @NotNull ComponentModifier uppercase() {
         return (final @NotNull Component rendered, final @Nullable Pointered context) ->
-            Component.text(plain(rendered).toUpperCase(), rendered.style());
+            Component.text(plain(rendered).toUpperCase(Locale.ROOT), rendered.style());
     }
 
     public static @NotNull ComponentModifier staticColor(final @NotNull NamedTextColor color) {

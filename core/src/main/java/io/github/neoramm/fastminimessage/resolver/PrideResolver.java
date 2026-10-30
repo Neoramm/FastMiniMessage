@@ -10,6 +10,7 @@ import net.kyori.adventure.text.format.TextColor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Locale;
 import java.util.Map;
 
 public final class PrideResolver implements ComponentResolver {
@@ -57,14 +58,15 @@ public final class PrideResolver implements ComponentResolver {
         String flag = PRIDE;
 
         if (!args.isEmpty()) {
-            final String value = args.getFirst("").toLowerCase();
-            if (FLAGS.containsKey(value)) {
+            final String value = args.getFirst("").toLowerCase(Locale.ROOT);
+            final TextColor @Nullable [] matched = FLAGS.get(value);
+            if (matched != null) {
                 flag = value;
                 if (args.size() > 1) phase = parsePhase(args.get(1, "0"));
             } else {
                 phase = parsePhase(value);
                 if (args.size() > 1) {
-                    final String second = args.get(1, "").toLowerCase();
+                    final String second = args.get(1, "").toLowerCase(Locale.ROOT);
                     if (FLAGS.containsKey(second)) flag = second;
                 }
             }

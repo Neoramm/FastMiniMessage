@@ -19,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiFunction;
@@ -32,7 +33,8 @@ public final class HoverResolver implements ComponentResolver {
         final @NotNull MiniMessageCompiler compiler) {
         final String actionName = args.getFirst("show_text");
         @SuppressWarnings("unchecked")
-        final HoverEvent.Action<Object> action = (HoverEvent.Action<Object>) HoverEvent.Action.NAMES.value(actionName);
+        final HoverEvent.Action<Object> action =
+            (HoverEvent.Action<Object>) HoverEvent.Action.NAMES.value(actionName.toLowerCase(Locale.ROOT));
         if (action == null) return new LiteralPreComponent("", inheritedStyle);
         final ActionHandler<Object> handler = actionHandler(action);
         if (handler == null) return new LiteralPreComponent("", inheritedStyle);

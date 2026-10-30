@@ -18,7 +18,7 @@ public final class TranslatableFallbackResolver implements ComponentResolver {
     public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
         final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
         final @NotNull MiniMessageCompiler compiler) {
-        if (args.isEmpty()) return new LiteralPreComponent("<" + name + ">", inheritedStyle);
+        if (args.size() < 2) throw new IllegalArgumentException("A translation key and fallback are required");
         final String key = args.getFirst();
         final String fallback = args.get(1);
         final int argCount = Math.max(0, args.size() - 2);

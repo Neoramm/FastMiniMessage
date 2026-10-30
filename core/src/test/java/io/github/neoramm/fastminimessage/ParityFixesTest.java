@@ -10,6 +10,7 @@ import io.github.neoramm.fastminimessage.model.PreComponentTree;
 import io.github.neoramm.fastminimessage.model.RenderScope;
 import io.github.neoramm.fastminimessage.model.TagResolver;
 import io.github.neoramm.fastminimessage.resolver.ModifierResolver;
+import net.kyori.adventure.identity.Identity;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.pointer.Pointers;
 import net.kyori.adventure.text.Component;
@@ -40,6 +41,75 @@ final class ParityFixesTest {
 
     private final @NotNull MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
     private final @NotNull MiniMessage miniMessage = MiniMessage.builder().strict(false).build();
+
+    @Test
+    void langOrSingleArgTest() {
+        final Component cLangEmpty = miniMessage.deserialize("<lang>");
+        final Component fastLangEmpty = compiler.compile("<lang>").render();
+        assertEquals(plain(cLangEmpty), plain(fastLangEmpty));
+
+        final Component cLangOr1 = miniMessage.deserialize("<lang_or:my.key>");
+        final Component fastLangOr1 = compiler.compile("<lang_or:my.key>").render();
+        assertEquals(plain(cLangOr1), plain(fastLangOr1));
+    }
+
+    @Test
+    void insertNoArgsTest() {
+        final Component c = miniMessage.deserialize("<insert>hello</insert>");
+        final Component fast = compiler.compile("<insert>hello</insert>").render();
+        assertEquals(plain(c), plain(fast));
+    }
+
+    @Test
+    void shadowNoArgsTest() {
+        final Component c = miniMessage.deserialize("<shadow>hello</shadow>");
+        final Component fast = compiler.compile("<shadow>hello</shadow>").render();
+        assertEquals(plain(c), plain(fast));
+    }
+
+    @Test
+    void playerHeadAdventureTest() {
+        final Component c1 = miniMessage.deserialize("<head:steve>");
+        final Component fast1 = compiler.compile("<head:steve>").render();
+        assertEquals(c1, fast1);
+
+        final Component cExtra = miniMessage.deserialize("<head:steve:true:extra>");
+        final Component fastExtra = compiler.compile("<head:steve:true:extra>").render();
+        assertEquals(plain(cExtra), plain(fastExtra));
+    }
+
+    @Test
+    void spriteAdventureTest() {
+        final Component c1 = miniMessage.deserialize("<sprite:item/diamond_pickaxe>");
+        final Component fast1 = compiler.compile("<sprite:item/diamond_pickaxe>").render();
+        assertEquals(c1, fast1);
+
+        final Component c2 = miniMessage.deserialize("<sprite:items:item/diamond_pickaxe>");
+        final Component fast2 = compiler.compile("<sprite:items:item/diamond_pickaxe>").render();
+        assertEquals(c2, fast2);
+
+        final Component cExtra = miniMessage.deserialize("<sprite:a:b:c>");
+        final Component fastExtra = compiler.compile("<sprite:a:b:c>").render();
+        assertEquals(plain(cExtra), plain(fastExtra));
+    }
+
+    @Test
+    void quoteWithGreaterSign() {
+        final Component c1 = miniMessage.deserialize("<hover:show_text:'a > b'>text</hover>");
+        final Component fast1 = compiler.compile("<hover:show_text:'a > b'>text</hover>").render();
+        assertEquals(plain(c1), plain(fast1));
+        assertEquals(c1.hoverEvent(), fast1.hoverEvent());
+
+        final Component c2 = miniMessage.deserialize("<hover:show_text:'unclosed>text</hover>");
+        final Component fast2 = compiler.compile("<hover:show_text:'unclosed>text</hover>").render();
+        assertEquals(plain(c2), plain(fast2));
+        assertEquals(c2.hoverEvent(), fast2.hoverEvent());
+
+        final Component c3 = miniMessage.deserialize("<click:run_command:'unclosed>test</click>");
+        final Component fast3 = compiler.compile("<click:run_command:'unclosed>test</click>").render();
+        assertEquals(plain(c3), plain(fast3));
+        assertEquals(c3.clickEvent(), fast3.clickEvent());
+    }
 
     @Test
     void negativeGradientPhaseMatchesMiniMessage() {
@@ -339,6 +409,23 @@ final class ParityFixesTest {
     }
 
     @Test
+    void decorationBooleanArguments() {
+        final String[] samples = {
+            "<bold:false>test</bold>",
+            "<bold:true>test</bold>",
+            "<italic:false>test</italic>",
+            "<underlined:false>test</underlined>",
+            "<strikethrough:false>test</strikethrough>",
+            "<obfuscated:false>test</obfuscated>"
+        };
+        for (final String sample : samples) {
+            final Component mm = miniMessage.deserialize(sample);
+            final Component fmm = compiler.compile(sample).render(NOBODY);
+            assertEquals(ComponentComparison.expression(mm), ComponentComparison.expression(fmm), sample);
+        }
+    }
+
+    @Test
     void unquotedLessThanCharactersPreserveTags() {
         final String[] samples = {
             "<3 <red>alert</red>",
@@ -500,6 +587,37 @@ final class ParityFixesTest {
         final Component mm = miniMessage.deserialize(
             "<bold><transition:red:blue:0.5>part1<yellow>part2</yellow></transition></bold>");
         assertEquals(ComponentComparison.expression(mm), ComponentComparison.expression(rendered));
+    }
+
+    @Test
+    void mathComparisonNotTreatedAsTags() {
+        final String input = "Condition: 3 < 5 and 5 > 2 check";
+        final Component mm = miniMessage.deserialize(input);
+        final Component fmm = compiler.compile(input).render(NOBODY);
+        assertEquals(ComponentComparison.expression(mm), ComponentComparison.expression(fmm));
+    }
+
+    @Test
+    void deferredTagArgumentPlayerSubstitution() {
+        final Pointered playerPointer = new Pointered() {
+            @Override
+            public @NotNull Pointers pointers() {
+                return Pointers.builder().withDynamic(Identity.NAME, () -> "Alex").build();
+            }
+        };
+        final PreComponentTree tree = compiler.compile("<hover:show_text:'User: <player>'>Profile</hover>");
+        final Component rendered = tree.render(playerPointer);
+        assertNotNull(rendered.hoverEvent());
+        final Component hoverValue = (Component) rendered.hoverEvent().value();
+        assertEquals("User: Alex", plain(hoverValue));
+    }
+
+    @Test
+    void keybindMissingArgumentFallsBackToLiteral() {
+        final String sample = "<key>";
+        final Component mm = miniMessage.deserialize(sample);
+        final Component fmm = compiler.compile(sample).render(NOBODY);
+        assertEquals(ComponentComparison.expression(mm), ComponentComparison.expression(fmm));
     }
 
     private static @NotNull String plain(final @NotNull Component component) {

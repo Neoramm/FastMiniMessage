@@ -15,6 +15,7 @@ import net.kyori.adventure.util.TriState;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Locale;
 import java.util.UUID;
 
 public final class PlayerHeadResolver implements ComponentResolver {
@@ -41,7 +42,10 @@ public final class PlayerHeadResolver implements ComponentResolver {
         } else {
             outerLayer = argumentToTriState(args.get(1, ""));
         }
-        if (args.size() > 2) return new LiteralPreComponent("", inheritedStyle);
+        if (args.size() > 2) {
+            throw new IllegalArgumentException(
+                "The head tag only accepts a target and an optional hat boolean");
+        }
 
         final boolean hat = outerLayer.toBooleanOrElse(PlayerHeadObjectContents.DEFAULT_HAT);
         final PlayerHeadObjectContents.Builder head = ObjectContents.playerHead().hat(hat);
@@ -62,7 +66,7 @@ public final class PlayerHeadResolver implements ComponentResolver {
     }
 
     private @NotNull TriState argumentToTriState(final @NotNull String value) {
-        return switch (value.toLowerCase()) {
+        return switch (value.toLowerCase(Locale.ROOT)) {
             case "true", "yes", "on" -> TriState.TRUE;
             case "false", "no", "off" -> TriState.FALSE;
             case "not_set", "default" -> TriState.NOT_SET;

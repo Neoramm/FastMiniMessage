@@ -16,11 +16,16 @@ public class UnparsedPreComponent extends DeferredTagPreComponent {
     private volatile @Nullable PreComponent parsedComponent;
 
     public UnparsedPreComponent(final @NotNull String unparsedTag) {
-        this(unparsedTag, null);
+        this(unparsedTag, unparsedTag, null);
     }
 
     public UnparsedPreComponent(final @NotNull String unparsedTag, final @Nullable String fallback) {
-        super(unparsedTag, "", PreComponent.EMPTY_CHILDREN, Style.empty(), false, true, false, null);
+        this(unparsedTag, unparsedTag, fallback);
+    }
+
+    public UnparsedPreComponent(final @NotNull String tagName, final @NotNull String unparsedTag,
+        final @Nullable String fallback) {
+        super(tagName, "", PreComponent.EMPTY_CHILDREN, Style.empty(), false, true, false, null);
         this.unparsedTag = unparsedTag;
         this.fallback = fallback;
     }
@@ -34,7 +39,10 @@ public class UnparsedPreComponent extends DeferredTagPreComponent {
             if (style == null || style.isEmpty()) return rendered;
             return rendered.style(style.merge(rendered.style()));
         }
-        final TagResolver resolver = scope.resolveTag(unparsedTag);
+        TagResolver resolver = scope.resolveTag(getTagName());
+        if (resolver == null && !unparsedTag.equals(getTagName())) {
+            resolver = scope.resolveTag(unparsedTag);
+        }
         if (resolver == null && fallback != null) {
             final Style style = computedStyle;
             return Component.text(fallback, style != null ? style : Style.empty());
@@ -44,7 +52,7 @@ public class UnparsedPreComponent extends DeferredTagPreComponent {
 
     @Override
     public @NotNull PreComponent deepCopy() {
-        final UnparsedPreComponent copy = new UnparsedPreComponent(unparsedTag, fallback);
+        final UnparsedPreComponent copy = new UnparsedPreComponent(getTagName(), unparsedTag, fallback);
         copy.parsedComponent = parsedComponent;
         copy.setStyle(computedStyle);
         return copy;

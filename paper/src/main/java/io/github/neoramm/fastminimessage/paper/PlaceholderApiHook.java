@@ -13,6 +13,10 @@ final class PlaceholderApiHook {
 
     static @NotNull String render(final @Nullable Pointered pointered, final @NotNull String expression) {
         final @Nullable Player player = pointered instanceof final Player candidate ? candidate : null;
-        return PlaceholderAPI.setPlaceholders(player, expression);
+        final String formatted = expression.startsWith("%") && expression.endsWith("%")
+            ? expression
+            : "%" + expression + "%";
+        final @Nullable String result = PlaceholderAPI.setPlaceholders(player, formatted);
+        return result == null ? formatted : result;
     }
 }

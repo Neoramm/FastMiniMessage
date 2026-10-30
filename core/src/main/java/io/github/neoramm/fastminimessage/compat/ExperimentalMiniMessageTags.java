@@ -153,25 +153,37 @@ public final class ExperimentalMiniMessageTags {
         @Override
         public @Nullable Component render(final @NotNull RuntimeTagContext context) {
             final String lookupName = normalize(context.name());
-            final List<Tag.Argument> argsList = buildArgs(context.rawArgs(), context.hasArguments());
-            final Context kyoriContext = createContext(context.pointered());
-            final ArgumentQueue queue = kyoriContext != null ? createQueue(kyoriContext, argsList) : null;
+            if (!has(lookupName)) return null;
+
+            List<Tag.Argument> argsList = null;
+            Context kyoriContext = null;
+            ArgumentQueue queue = null;
+            final boolean noArgs = !context.hasArguments() && context.rawArgs().isEmpty();
 
             for (int i = 0; i < resolvers.length; i++) {
                 final TagResolver resolver = resolvers[i];
                 if (!resolver.has(lookupName)) continue;
-                if (queue != null) queue.reset();
                 final Tag tag;
                 try {
-                    if (argsList.isEmpty() && resolver instanceof final TagResolver.Single single) {
+                    if (noArgs && resolver instanceof final TagResolver.Single single) {
                         tag = single.tag();
-                    } else if (argsList.isEmpty()
-                        && resolver instanceof final TagResolver.WithoutArguments withoutArguments) {
+                    } else if (noArgs && resolver instanceof final TagResolver.WithoutArguments withoutArguments) {
                         tag = withoutArguments.resolve(lookupName);
-                    } else if (kyoriContext != null && queue != null) {
-                        tag = resolver.resolve(lookupName, queue, kyoriContext);
                     } else {
-                        tag = null;
+                        if (argsList == null) argsList = buildArgs(context.rawArgs(), context.hasArguments());
+                        if (argsList.isEmpty() && resolver instanceof final TagResolver.Single single) {
+                            tag = single.tag();
+                        } else if (argsList.isEmpty()
+                            && resolver instanceof final TagResolver.WithoutArguments withoutArguments) {
+                            tag = withoutArguments.resolve(lookupName);
+                        } else {
+                            if (kyoriContext == null) kyoriContext = createContext(context.pointered());
+                            if (kyoriContext != null && queue == null) queue = createQueue(kyoriContext, argsList);
+                            if (queue != null) queue.reset();
+                            tag = kyoriContext != null && queue != null
+                                ? resolver.resolve(lookupName, queue, kyoriContext)
+                                : null;
+                        }
                     }
                 } catch (final ParsingException e) {
                     return null;

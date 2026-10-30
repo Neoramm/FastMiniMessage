@@ -23,6 +23,7 @@ final class PapiSupport {
 
     private static boolean isAvailable() {
         if (available) return true;
+        if (Bukkit.getServer() == null) return false;
         final boolean enabled = Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
         if (enabled) available = true;
         return enabled;
