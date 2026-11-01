@@ -24,7 +24,7 @@ public final class TranslatableFallbackResolver implements ComponentResolver {
         final int argCount = Math.max(0, args.size() - 2);
         final PreComponentTree @Nullable [] translatableArgs = argCount > 0 ? new PreComponentTree[argCount] : null;
         if (translatableArgs != null) {
-            for (int i = 2; i < args.size(); i++) translatableArgs[i - 2] = compiler.compile(args.get(i));
+            for (int i = 2; i < args.size(); i++) translatableArgs[i - 2] = compiler.compileArgument(args.get(i));
         }
         return new TranslatablePreComponent(key, fallback, translatableArgs, inheritedStyle);
     }

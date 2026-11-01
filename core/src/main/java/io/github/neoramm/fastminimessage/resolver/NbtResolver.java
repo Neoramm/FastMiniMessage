@@ -60,7 +60,7 @@ public final class NbtResolver implements ComponentResolver {
             idx++;
             if (INTERPRET.equalsIgnoreCase(popped) || "true".equalsIgnoreCase(popped)) interpret = true;
             else {
-                separator = compiler.compile(popped);
+                separator = compiler.compileArgument(popped);
                 if (args.size() > idx
                     && (INTERPRET.equalsIgnoreCase(args.get(idx)) || "true".equalsIgnoreCase(args.get(idx)))) {
                     interpret = true;

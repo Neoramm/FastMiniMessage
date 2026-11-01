@@ -19,7 +19,7 @@ public final class GroupPreComponent extends PreComponent {
 
     @Override
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
-        if (isStatic() && scope.isEmpty()) {
+        if (isStatic() && (scope.isEmpty() || isScopeIndependent())) {
             final Component current = cached;
             if (current != null) return current;
             final Component built = renderUncached(pointered, scope);
@@ -54,7 +54,7 @@ public final class GroupPreComponent extends PreComponent {
             builder.append(render(pointered, scope));
             return;
         }
-        if (isStatic() && scope.isEmpty()) {
+        if (isStatic() && (scope.isEmpty() || isScopeIndependent())) {
             final Component current = cached;
             if (current != null) {
                 builder.append(current);
@@ -74,6 +74,11 @@ public final class GroupPreComponent extends PreComponent {
     public @NotNull PreComponent setChildren(final @Nullable PreComponent[] children) {
         cached = null;
         return super.setChildren(children);
+    }
+
+    @Override
+    public boolean isScopeIndependent() {
+        return childrenAreScopeIndependent();
     }
 
     @Override

@@ -51,7 +51,7 @@ tasks.register<JavaExec>("jmh") {
 
 tasks.register<JavaExec>("jmhIntense") {
     group = "benchmark"
-    description = "Intense JMH run (-wi 10 -i 20 -f 3 -w 3s -r 3s)"
+    description = "Intense JMH run (-wi 10 -i 20 -f 3 -w 1s -r 1s)"
     dependsOn(tasks.named("testClasses"))
     mainClass.set("org.openjdk.jmh.Main")
     classpath = sourceSets["test"].runtimeClasspath

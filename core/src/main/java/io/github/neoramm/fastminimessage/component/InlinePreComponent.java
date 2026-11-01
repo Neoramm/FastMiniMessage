@@ -35,6 +35,11 @@ public final class InlinePreComponent extends PreComponent {
     }
 
     @Override
+    public boolean isScopeIndependent() {
+        return true;
+    }
+
+    @Override
     public boolean isStatic() {
         return true;
     }

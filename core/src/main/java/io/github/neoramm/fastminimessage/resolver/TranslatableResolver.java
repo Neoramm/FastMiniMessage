@@ -22,7 +22,7 @@ public final class TranslatableResolver implements ComponentResolver {
         final PreComponentTree @Nullable [] translatableArgs =
             args.size() > 1 ? new PreComponentTree[args.size() - 1] : null;
         if (translatableArgs != null) {
-            for (int i = 1; i < args.size(); i++) translatableArgs[i - 1] = compiler.compile(args.get(i));
+            for (int i = 1; i < args.size(); i++) translatableArgs[i - 1] = compiler.compileArgument(args.get(i));
         }
         return new TranslatablePreComponent(key, translatableArgs, inheritedStyle);
     }

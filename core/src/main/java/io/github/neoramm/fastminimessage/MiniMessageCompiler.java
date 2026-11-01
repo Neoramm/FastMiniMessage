@@ -10,6 +10,7 @@ import io.github.neoramm.fastminimessage.component.LiteralPreComponent;
 import io.github.neoramm.fastminimessage.component.StyleFlattener;
 import io.github.neoramm.fastminimessage.component.UnparsedPreComponent;
 import io.github.neoramm.fastminimessage.internal.DefaultTagScanner;
+import io.github.neoramm.fastminimessage.internal.TagArgumentTypes;
 import io.github.neoramm.fastminimessage.model.Arguments;
 import io.github.neoramm.fastminimessage.model.PreComponent;
 import io.github.neoramm.fastminimessage.model.PreComponentTree;
@@ -79,6 +80,18 @@ public final class MiniMessageCompiler {
         return new PreComponentTree(StyleFlattener.flatten(rootComponent));
     }
 
+    public @NotNull PreComponentTree compileArgument(final @Nullable String input) {
+        if (input != null && input.length() > 2 && input.charAt(0) == '<'
+            && input.charAt(input.length() - 1) == '>') {
+            final @NotNull String name = input.substring(1, input.length() - 1);
+            if (name.indexOf(':') == -1 && registry.resolve(name) != null) {
+                return new PreComponentTree(new DeferredTagPreComponent(name, "", PreComponent.EMPTY_CHILDREN,
+                    Style.empty(), false, false, false, this));
+            }
+        }
+        return compile(input);
+    }
+
     public void registerModifier(final @NotNull String name, final @NotNull ComponentModifier modifier) {
         registry.register(new ModifierResolver(name, modifier));
     }
@@ -136,7 +149,7 @@ public final class MiniMessageCompiler {
         final TagNode node = styled.node();
         final PreComponent @NotNull [] childComponents = new PreComponent[styled.children().size()];
         for (int i = 0; i < styled.children().size(); i++) childComponents[i] = resolveStyled(styled.children().get(i));
-        if (containsPlaceholder(node.rawArgs())) {
+        if (containsPlaceholder(node.rawArgs()) && !isComponentArgument(node)) {
             return new DeferredTagPreComponent(node.tagName(), node.rawArgs(), childComponents, styled.computedStyle(),
                 node.hasArguments(), node.isSelfClosing(), node.explicitlyClosed(), this);
         }
@@ -213,6 +226,14 @@ public final class MiniMessageCompiler {
             return new DeferredTagPreComponent(tagName, rawArgs, children, inheritedStyle, hasArguments,
                 selfClosing, explicitlyClosed, null);
         }
+    }
+
+    private static boolean isComponentArgument(final @NotNull TagNode node) {
+        final @NotNull Arguments args = Arguments.parse(node.rawArgs());
+        for (int i = 0; i < args.size(); i++) {
+            if (!TagArgumentTypes.isComponent(node.tagName(), args, i) && containsPlaceholder(args.get(i))) return false;
+        }
+        return true;
     }
 
     private static boolean containsPlaceholder(final @Nullable String rawArgs) {

@@ -19,7 +19,7 @@ public final class SelectorResolver implements ComponentResolver {
         if (args.isEmpty()) throw new IllegalArgumentException("A selection key is required");
         final String key = args.getFirst();
         final @Nullable PreComponentTree separator =
-            args.size() > 1 && args.get(1) != null ? compiler.compile(args.get(1)) : null;
+            args.size() > 1 && args.get(1) != null ? compiler.compileArgument(args.get(1)) : null;
         return new SelectorPreComponent(key, separator).setStyle(inheritedStyle);
     }
 

@@ -43,6 +43,11 @@ public final class HoverPreComponent extends PreComponent {
     }
 
     @Override
+    public boolean isScopeIndependent() {
+        return staticEvent != null && childrenAreScopeIndependent();
+    }
+
+    @Override
     public boolean isStatic() {
         return staticEvent != null && childrenAreStatic();
     }

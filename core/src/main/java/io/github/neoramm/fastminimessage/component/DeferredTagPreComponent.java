@@ -1,6 +1,7 @@
 package io.github.neoramm.fastminimessage.component;
 
 import io.github.neoramm.fastminimessage.MiniMessageCompiler;
+import io.github.neoramm.fastminimessage.internal.TagArgumentTypes;
 import io.github.neoramm.fastminimessage.api.ComponentModifier;
 import io.github.neoramm.fastminimessage.model.Arguments;
 import io.github.neoramm.fastminimessage.model.PreComponent;
@@ -22,6 +23,7 @@ public class DeferredTagPreComponent extends PreComponent {
     private final @NotNull String tagName;
     private final @NotNull String rawArgsTemplate;
     private final @Nullable Arguments staticArgs;
+    private final @NotNull Arguments templateArgs;
     private final boolean hasArguments;
     private final boolean selfClosing;
     private final boolean explicitlyClosed;
@@ -43,6 +45,7 @@ public class DeferredTagPreComponent extends PreComponent {
         this.staticArgs = rawArgsTemplate.isEmpty()
             ? Arguments.EMPTY
             : (rawArgsTemplate.indexOf('<') == -1 ? Arguments.parse(rawArgsTemplate) : null);
+        this.templateArgs = Arguments.parse(rawArgsTemplate);
         this.hasArguments = hasArguments;
         this.selfClosing = selfClosing;
         this.explicitlyClosed = explicitlyClosed;
@@ -225,7 +228,23 @@ public class DeferredTagPreComponent extends PreComponent {
 
     private @NotNull String resolveArgs(final @NotNull RenderScope scope, final @Nullable Pointered pointered) {
         if (rawArgsTemplate.isEmpty() || rawArgsTemplate.indexOf('<') == -1) return rawArgsTemplate;
-        return substitute(rawArgsTemplate, scope, pointered);
+        final @NotNull StringBuilder encoded = new StringBuilder(rawArgsTemplate.length() + 8);
+        boolean changed = false;
+        for (int i = 0; i < templateArgs.size(); i++) {
+            final @NotNull String original = templateArgs.get(i, "");
+            final @NotNull String value = TagArgumentTypes.isComponent(tagName, templateArgs, i)
+                ? original : substitute(original, scope, pointered);
+            changed |= !original.equals(value);
+            if (i > 0) encoded.append(':');
+            encoded.append('\'');
+            for (int j = 0; j < value.length(); j++) {
+                final char character = value.charAt(j);
+                if (character == '\\' || character == '\'') encoded.append('\\');
+                encoded.append(character);
+            }
+            encoded.append('\'');
+        }
+        return changed ? encoded.toString() : rawArgsTemplate;
     }
 
     private @NotNull Component renderChildren(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
@@ -241,7 +260,6 @@ public class DeferredTagPreComponent extends PreComponent {
     public @NotNull PreComponent deepCopy() {
         final DeferredTagPreComponent copy = new DeferredTagPreComponent(tagName, rawArgsTemplate,
             copyNonNullChildren(), computedStyle, hasArguments, selfClosing, explicitlyClosed, compiler);
-        copy.cachedResolution = this.cachedResolution;
         return copy;
     }
 

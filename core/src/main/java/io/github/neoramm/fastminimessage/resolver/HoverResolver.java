@@ -35,9 +35,9 @@ public final class HoverResolver implements ComponentResolver {
         @SuppressWarnings("unchecked")
         final HoverEvent.Action<Object> action =
             (HoverEvent.Action<Object>) HoverEvent.Action.NAMES.value(actionName.toLowerCase(Locale.ROOT));
-        if (action == null) return new LiteralPreComponent("", inheritedStyle);
+        if (action == null) throw new IllegalArgumentException("Unknown hover action: " + actionName);
         final ActionHandler<Object> handler = actionHandler(action);
-        if (handler == null) return new LiteralPreComponent("", inheritedStyle);
+        if (handler == null) throw new IllegalArgumentException("Unsupported hover action: " + actionName);
         if (children.length == 0) return new LiteralPreComponent("", inheritedStyle);
         final HoverResolution resolution = handler.buildResolution(args, compiler);
         if (resolution.staticEvent != null) {
@@ -84,7 +84,7 @@ public final class HoverResolver implements ComponentResolver {
         public @NotNull HoverResolution buildResolution(final @NotNull Arguments args,
             final @NotNull MiniMessageCompiler compiler) {
             final String text = args.get(1, "");
-            final PreComponentTree tree = compiler.compile(text);
+            final PreComponentTree tree = compiler.compileArgument(text);
             if (tree.isStatic()) return HoverResolution.ofStatic(HoverEvent.showText(tree.render(null)));
             return HoverResolution.ofDynamic((final @Nullable Pointered pointered, final @NotNull RenderScope scope) ->
                 HoverEvent.showText(tree.render(pointered, scope)));
@@ -148,7 +148,7 @@ public final class HoverResolver implements ComponentResolver {
                 final UUID id = idRaw != null ? UUID.fromString(idRaw) : UUID.randomUUID();
                 if (args.size() > 3) {
                     final String nameRaw = args.get(3, "");
-                    final PreComponentTree nameTree = compiler.compile(nameRaw);
+                    final PreComponentTree nameTree = compiler.compileArgument(nameRaw);
                     if (nameTree.isStatic()) {
                         return HoverResolution.ofStatic(HoverEvent.showEntity(
                             HoverEvent.ShowEntity.showEntity(key, id, nameTree.render(null))));

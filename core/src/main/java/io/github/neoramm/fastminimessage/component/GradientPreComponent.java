@@ -53,24 +53,29 @@ public final class GradientPreComponent extends PreComponent {
     @Override
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
         final Component cached = this.cached;
-        if (cached != null && scope.isEmpty()) return cached;
+        if (cached != null && (scope.isEmpty() || isScopeIndependent())) return cached;
         final TextComponent.Builder builder = Component.text();
         final Style style = requireStyle();
         if (!style.isEmpty()) builder.style(style);
         appendUncached(pointered, builder, false, scope);
         final Component rendered = builder.build();
-        if (isStatic() && scope.isEmpty()) this.cached = rendered;
+        if (isStatic() && (scope.isEmpty() || isScopeIndependent())) this.cached = rendered;
         return rendered;
     }
 
     @Override
     public void renderInto(final @Nullable Pointered pointered, final @NotNull TextComponent.Builder builder,
         final @NotNull RenderScope scope) {
-        if (isStatic() && scope.isEmpty()) {
+        if (isStatic() && (scope.isEmpty() || isScopeIndependent())) {
             builder.append(render(pointered, scope));
             return;
         }
         appendUncached(pointered, builder, true, scope);
+    }
+
+    @Override
+    public boolean isScopeIndependent() {
+        return childrenAreScopeIndependent();
     }
 
     @Override

@@ -32,7 +32,7 @@ public final class TranslatablePreComponent extends PreComponent {
     @Override
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
         final @Nullable Component cached = this.cachedComponent;
-        if (cached != null && scope.isEmpty()) return cached;
+        if (cached != null && (scope.isEmpty() || isScopeIndependent())) return cached;
         final TranslatableComponent.Builder builder = Component.translatable().key(key);
         if (computedStyle != null && !computedStyle.isEmpty()) builder.style(computedStyle);
         if (fallback != null) builder.fallback(fallback);
@@ -43,8 +43,15 @@ public final class TranslatablePreComponent extends PreComponent {
             builder.arguments(components);
         }
         final Component result = builder.build();
-        if (isStatic() && scope.isEmpty()) this.cachedComponent = result;
+        if (isStatic() && (scope.isEmpty() || isScopeIndependent())) this.cachedComponent = result;
         return result;
+    }
+
+    @Override
+    public boolean isScopeIndependent() {
+        if (args == null) return true;
+        for (final PreComponentTree arg : args) if (!arg.isScopeIndependent()) return false;
+        return true;
     }
 
     @Override

@@ -26,7 +26,8 @@ public final class ClickResolver implements ComponentResolver {
         final @NotNull MiniMessageCompiler compiler) {
         final String actionName = args.nextOr("open_url");
         final @Nullable ClickEvent<?> event = resolveClickEvent(compiler, actionName, args);
-        if (children.length == 0 || event == null) return new LiteralPreComponent("", inheritedStyle);
+        if (event == null) throw new IllegalArgumentException("A click event value is required");
+        if (children.length == 0) return new LiteralPreComponent("", inheritedStyle);
         final Style own = Style.style().clickEvent(event).build();
         final @Nullable LiteralPreComponent merged =
             StyleInheritance.mergeIntoOnlyLiteral(children, inheritedStyle, own);

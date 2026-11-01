@@ -57,7 +57,7 @@ public final class NbtPreComponent extends PreComponent {
     @Override
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
         final @Nullable Component cached = this.cachedComponent;
-        if (cached != null && scope.isEmpty()) return cached;
+        if (cached != null && (scope.isEmpty() || isScopeIndependent())) return cached;
         final NBTComponentBuilder<?, ?> builder = switch (kind) {
             case BLOCK -> Component.blockNBT().pos(pos);
             case ENTITY -> Component.entityNBT().selector(selector);
@@ -70,7 +70,7 @@ public final class NbtPreComponent extends PreComponent {
         final Component component = builder.build();
         final Style style = computedStyle != null ? computedStyle : Style.empty();
         final Component result = style.isEmpty() ? component : component.style(style.merge(component.style()));
-        if (isStatic() && scope.isEmpty()) this.cachedComponent = result;
+        if (isStatic() && (scope.isEmpty() || isScopeIndependent())) this.cachedComponent = result;
         return result;
     }
 
@@ -79,6 +79,11 @@ public final class NbtPreComponent extends PreComponent {
         super.setStyle(style);
         this.cachedComponent = null;
         return this;
+    }
+
+    @Override
+    public boolean isScopeIndependent() {
+        return separator == null || separator.isScopeIndependent();
     }
 
     @Override

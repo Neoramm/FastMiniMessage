@@ -3,6 +3,7 @@ package io.github.neoramm.fastminimessage.model;
 import io.github.neoramm.fastminimessage.MiniMessageCompiler;
 import io.github.neoramm.fastminimessage.api.PreComponentVisitor;
 import io.github.neoramm.fastminimessage.component.InlinePreComponent;
+import io.github.neoramm.fastminimessage.component.LiteralPreComponent;
 import io.github.neoramm.fastminimessage.resolver.ModifierResolver;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
@@ -11,6 +12,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 /**
@@ -19,13 +22,10 @@ import java.util.function.UnaryOperator;
 public final class PreComponentTree {
     public static final @NotNull PreComponentTree EMPTY =
         new PreComponentTree(new InlinePreComponent(Component.empty()));
-    private final @NotNull PreComponent root;
-    private final boolean isStatic;
-    private volatile @Nullable Component cachedStatic;
+    private volatile @NotNull TreeState state;
 
     public PreComponentTree(final @NotNull PreComponent root) {
-        this.root = root;
-        this.isStatic = root.isStatic();
+        this.state = new TreeState(root.deepCopy());
     }
 
     /**
@@ -48,30 +48,38 @@ public final class PreComponentTree {
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final @Nullable RenderScope scope) {
-        if (isStatic && (scope == null || scope.isEmpty())) {
-            final Component cached = cachedStatic;
+        return render(state, pointered, scope);
+    }
+
+    private static @NotNull Component render(final @NotNull TreeState current, final @Nullable Pointered pointered,
+        final @Nullable RenderScope scope) {
+        if (current.isStatic && (current.scopeIndependent || scope == null || scope.isEmpty())) {
+            final Component cached = current.cached;
             if (cached != null) return cached;
-            final Component built = root.render(pointered, RenderScope.EMPTY);
-            cachedStatic = built;
+            final Component built = current.root.render(pointered, RenderScope.EMPTY);
+            current.cached = built;
             return built;
         }
-        return root.render(pointered, scope != null ? scope : RenderScope.EMPTY);
+        return current.root.render(pointered, scope != null ? scope : RenderScope.EMPTY);
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final TagResolver @NotNull ... resolvers) {
-        if (isStatic && (resolvers == null || resolvers.length == 0)) return render(pointered, RenderScope.EMPTY);
-        return root.render(pointered, RenderScope.of(resolvers));
+        final @NotNull TreeState current = state;
+        if (current.isStatic && current.scopeIndependent) return render(current, pointered, RenderScope.EMPTY);
+        return render(current, pointered, RenderScope.of(resolvers));
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered,
         final @NotNull ModifierResolver... modifiers) {
-        if (isStatic && (modifiers == null || modifiers.length == 0)) return render(pointered, RenderScope.EMPTY);
-        return root.render(pointered, RenderScope.of(modifiers));
+        final @NotNull TreeState current = state;
+        if (current.isStatic && current.scopeIndependent) return render(current, pointered, RenderScope.EMPTY);
+        return render(current, pointered, RenderScope.of(modifiers));
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RuntimeResolver... resolvers) {
-        if (isStatic && (resolvers == null || resolvers.length == 0)) return render(pointered, RenderScope.EMPTY);
-        return root.render(pointered, RenderScope.from(resolvers));
+        final @NotNull TreeState current = state;
+        if (current.isStatic && current.scopeIndependent) return render(current, pointered, RenderScope.EMPTY);
+        return render(current, pointered, RenderScope.from(resolvers));
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull PreComponent extra) {
@@ -88,25 +96,46 @@ public final class PreComponentTree {
 
     public @NotNull Component render(final @Nullable Pointered pointered,
         final @NotNull List<? extends TagResolver> resolvers) {
-        if (isStatic && (resolvers == null || resolvers.isEmpty())) return render(pointered, RenderScope.EMPTY);
-        return root.render(pointered, RenderScope.of(resolvers));
+        final @NotNull TreeState current = state;
+        if (current.isStatic && current.scopeIndependent) return render(current, pointered, RenderScope.EMPTY);
+        return render(current, pointered, RenderScope.of(resolvers));
     }
 
     public @NotNull Component render(final @Nullable Pointered pointered, final Placeholder @NotNull ... placeholders) {
-        if (isStatic && (placeholders == null || placeholders.length == 0)) return render(pointered, RenderScope.EMPTY);
-        return root.render(pointered, RenderScope.of(placeholders));
+        final @NotNull TreeState current = state;
+        if (current.isStatic && current.scopeIndependent) return render(current, pointered, RenderScope.EMPTY);
+        return render(current, pointered, RenderScope.of(placeholders));
+    }
+
+    public boolean isScopeIndependent() {
+        return state.scopeIndependent;
     }
 
     public boolean isStatic() {
-        return isStatic;
+        return state.isStatic;
     }
 
     public @NotNull PreComponentTree copy() {
-        return new PreComponentTree(root.deepCopy());
+        return new PreComponentTree(state.root);
+    }
+
+    public void inspect(final @NotNull Consumer<@NotNull PreComponentSnapshot> visitor) {
+        Objects.requireNonNull(visitor, "visitor");
+        inspectDepthFirst(state.root, visitor);
+    }
+
+    private static void inspectDepthFirst(final @NotNull PreComponent node,
+        final @NotNull Consumer<@NotNull PreComponentSnapshot> visitor) {
+        visitor.accept(new PreComponentSnapshot(node.getClass().getSimpleName(), node.getComputedStyle(),
+            node instanceof LiteralPreComponent literal ? literal.getText() : null,
+            node.getChildren().length, node.isStatic(), node.isScopeIndependent()));
+        for (final PreComponent child : node.getChildren()) inspectDepthFirst(child, visitor);
     }
 
     public void visit(final @NotNull PreComponentVisitor visitor) {
-        visitDepthFirst(root, visitor);
+        final @NotNull PreComponent edited = state.root.deepCopy();
+        visitDepthFirst(edited, visitor);
+        state = new TreeState(edited.deepCopy());
     }
 
     private void visitDepthFirst(final @NotNull PreComponent node, final @NotNull PreComponentVisitor visitor) {
@@ -117,7 +146,7 @@ public final class PreComponentTree {
 
     public @NotNull Component render(final @Nullable Pointered pointered,
         final @NotNull UnaryOperator<PreComponent> modifier) {
-        final PreComponent modifiedRoot = modifyDepthFirst(root.deepCopy(), modifier);
+        final PreComponent modifiedRoot = modifyDepthFirst(state.root.deepCopy(), modifier);
         return modifiedRoot.render(pointered, RenderScope.EMPTY);
     }
 
@@ -127,5 +156,18 @@ public final class PreComponentTree {
         final PreComponent @NotNull [] childArray = modified.getChildren();
         for (int i = 0; i < childArray.length; i++) childArray[i] = modifyDepthFirst(childArray[i], modifier);
         return modified;
+    }
+
+    private static final class TreeState {
+        private final @NotNull PreComponent root;
+        private final boolean isStatic;
+        private final boolean scopeIndependent;
+        private volatile @Nullable Component cached;
+
+        private TreeState(final @NotNull PreComponent root) {
+            this.root = root;
+            this.isStatic = root.isStatic();
+            this.scopeIndependent = root.isScopeIndependent();
+        }
     }
 }

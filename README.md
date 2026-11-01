@@ -23,15 +23,17 @@ for it. Adventure remains the underlying model (`Component`, `Style`, `TextColor
 - Optional bridge for MiniMessage `Placeholder` and `TagResolver` instances, with an
   optional delegation mode that uses a `MiniMessage` instance for argument-based and
   `Modifying` tags.
+- Localization with precompiled translation stores, Adventure `GlobalTranslator`,
+  indexed/named arguments, locale fallbacks, and UTF-8 resource bundles.
 - Optional Paper module with dialog, item hover and PlaceholderAPI tags.
 - Java 21+ core, no new runtime dependencies beyond Adventure.
 
 ## Modules
 
-| Module | Artifact | Requires |
-|---|---|---|
-| `core` | `io.github.neoramm:fastminimessage` | Java 21+, Adventure 5.2.0+ |
-| `paper` | `io.github.neoramm:fastminimessage-paper` | Java 25+, Paper 26.2+ |
+| Module  | Artifact                                  | Requires                   |
+|---------|-------------------------------------------|----------------------------|
+| `core`  | `io.github.neoramm:fastminimessage`       | Java 21+, Adventure 5.2.0+ |
+| `paper` | `io.github.neoramm:fastminimessage-paper` | Java 25+, Paper 26.2+      |
 
 The Paper module is optional. It adds tags that need the Paper API (dialogs, item
 stacks) and an optional PlaceholderAPI tag; the core module remains platform
@@ -66,16 +68,91 @@ implementation("io.github.neoramm:fastminimessage-paper:<version>") // Paper 26.
 
 ## Comparison
 
-| Feature / Metric | FastMiniMessage (`PreComponentTree`) | Standard MiniMessage (`deserialize`) | MiniMessage + `TextReplacementConfig` |
-|---|---|---|---|
-| **Core Architecture** | Compiles string once into a flattened AST; renders directly via fast-path | Re-tokenizes, parses, and builds the full component tree on every render | Deserializes once, then recursively traverses and rebuilds the component tree |
-| **Static Render Latency** | **~0.89 ns** (cached static reference) | **~10 236 ns** (10+ µs per call) | **~10 236 ns** (initial) + 0 ns (if cached Component without replacement) |
-| **Dynamic Render Latency** | **~2 294 – 2 897 ns** (~2.3 – 2.9 µs with placeholders) | **~10 236 ns – 744 418 ns** (scales with template size) | **~15 000 ns – 120 000 ns** (recursive tree traversal & regex matching) |
-| **Garbage Collection (GC)** | **0 B (Zero GC)** on static renders; minimal on dynamic | **14.0 KB – 805.6 KB** allocated per render | High GC; clones `Component` and `TextComponent` builders for every node match |
-| **Static Tree Optimization** | Built-in `isStatic()` detection and automatic zero-allocation caching | None; full parsing is re-executed every single time | Manual; developer must manage cached `Component` instances |
-| **Style Flattening** | Flattens nested wrappers and merges adjacent identical styles at compile time | Retains deeply nested component hierarchy and redundant style wrappers | No flattening; replacements split text components into more fragments |
-| **Dynamic & Argument Tags** | Native support (`<tag:arg1:arg2>`), unclosed tags, and modifiers evaluated on render | Requires re-parsing the entire template with `TagResolver` | Not supported; limited to plain string or regex replacements |
-| **Viewer Context (`Pointered`)** | First-class (`tree.render(player)` auto-resolves `<player>`, PAPI, dialogs) | Must pass context to deserializer on every invocation | None; developer must extract player properties manually beforehand |
+| Feature / Metric                 | FastMiniMessage (`PreComponentTree`)                                                 | Standard MiniMessage (`deserialize`)                                     | MiniMessage + `TextReplacementConfig`                                         |
+|----------------------------------|--------------------------------------------------------------------------------------|--------------------------------------------------------------------------|-------------------------------------------------------------------------------|
+| **Core Architecture**            | Compiles string once into a flattened AST; renders directly via fast-path            | Re-tokenizes, parses, and builds the full component tree on every render | Deserializes once, then recursively traverses and rebuilds the component tree |
+| **Static Render Latency**        | **~0.89 ns** (cached static reference)                                               | **~10 236 ns** (10+ µs per call)                                         | **~10 236 ns** (initial) + 0 ns (if cached Component without replacement)     |
+| **Dynamic Render Latency**       | **~2 294 – 2 897 ns** (~2.3 – 2.9 µs with placeholders)                              | **~10 236 ns – 744 418 ns** (scales with template size)                  | **~15 000 ns – 120 000 ns** (recursive tree traversal & regex matching)       |
+| **Garbage Collection (GC)**      | **0 B (Zero GC)** on static renders; minimal on dynamic                              | **14.0 KB – 805.6 KB** allocated per render                              | High GC; clones `Component` and `TextComponent` builders for every node match |
+| **Static Tree Optimization**     | Built-in `isStatic()` detection and automatic zero-allocation caching                | None; full parsing is re-executed every single time                      | Manual; developer must manage cached `Component` instances                    |
+| **Style Flattening**             | Flattens nested wrappers and merges adjacent identical styles at compile time        | Retains deeply nested component hierarchy and redundant style wrappers   | No flattening; replacements split text components into more fragments         |
+| **Dynamic & Argument Tags**      | Native support (`<tag:arg1:arg2>`), unclosed tags, and modifiers evaluated on render | Requires re-parsing the entire template with `TagResolver`               | Not supported; limited to plain string or regex replacements                  |
+| **Viewer Context (`Pointered`)** | First-class (`tree.render(player)` auto-resolves `<player>`, PAPI, dialogs)          | Must pass context to deserializer on every invocation                    | None; developer must extract player properties manually beforehand            |
+
+## Localization
+
+`FastMiniMessageTranslationStore` integrates with Adventure's
+[localization system](https://docs.papermc.io/adventure/localization/). Messages are
+compiled when registered, and reused when translated. No MiniMessage runtime
+dependency is required.
+
+```java
+import io.github.neoramm.fastminimessage.translation.Argument;
+import io.github.neoramm.fastminimessage.translation.FastMiniMessageTranslationStore;
+import net.kyori.adventure.key.Key;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.translation.GlobalTranslator;
+
+import java.util.Locale;
+
+final FastMiniMessageTranslationStore translations =
+    FastMiniMessageTranslationStore.create(Key.key("myplugin:messages"));
+translations.defaultLocale(Locale.ENGLISH);
+translations.register("welcome", Locale.ENGLISH, "<green>Welcome, <name>!</green>");
+translations.register("welcome", Locale.of("es"), "<green>¡Bienvenido, <name>!</green>");
+GlobalTranslator.translator().addSource(translations);
+
+final Component message = Component.translatable("welcome", Argument.string("name", "Alex"));
+final Component spanish = GlobalTranslator.render(message, Locale.of("es", "PE"));
+```
+
+On platforms that support automatic global translation, send `message` directly to
+the audience. Otherwise, render it explicitly as above. Remove the store with
+`GlobalTranslator.translator().removeSource(translations)` when disabling your plugin.
+Paper does not apply global translation in every context, including item text.
+
+Ordinary `Component.translatable` arguments are available as `<arg:0>`,
+`<argument:1>`, and so on. The native `Argument` class above additionally provides
+`component`, `string`, `numeric`, `bool`, and `argument` factories: named values are
+available both by name and by index. String arguments are inserted literally, so
+text such as `<red>` cannot inject formatting. Use names that do not collide with
+built-in tags or your compiler's registered tags, which are resolved at compile time.
+Invalid indices retain their literal tag text.
+
+`Argument.tagResolver(...)` supplies FastMiniMessage runtime resolvers, including
+insertion, modification, and argument-based tags. `Argument.target(viewer)` supplies
+a rendering target; otherwise, the target exposes the requested `Identity.LOCALE`.
+Resolver and target arguments do not consume positional indices. Only one target
+is allowed per message. These factories belong to FastMiniMessage, not MiniMessage's
+separate `Argument` class.
+
+The store implements `TranslationStore.StringBased<String>` and accepts maps,
+key sets with lookup functions, resource bundles, and UTF-8 `.properties` paths:
+
+```java
+import java.nio.file.Path;
+
+translations.registerAll(Locale.ENGLISH, Path.of("messages_en.properties"), false);
+```
+
+Load files during startup or asynchronously, outside the server tick. Use `false`
+for `escapeSingleQuotes` to preserve apostrophes in MiniMessage text. File read
+failures throw `UncheckedIOException`. Duplicate key/locale pairs are rejected;
+`unregister(key)` removes all locales for a key before registering replacements.
+
+Locale lookup follows Adventure: exact locale, language-only locale, the store's
+default (initially `Locale.US`), then Adventure's global default. `contains(key,
+locale)` checks only explicit registrations; `canTranslate` includes fallbacks.
+Missing translations return `null`, allowing other translation sources and client
+translations to handle the key. Source styles and children are retained; nested
+translations are rendered by Adventure's component renderer or `GlobalTranslator`.
+
+For custom tags, pass a configured `MiniMessageCompiler` to `create(name, compiler)`.
+Finish configuring it before registration and avoid mutating it while rendering.
+For a custom translation backend, extend `FastMiniMessageTranslator`, implement
+`name()` and `getTranslation(key, locale)`, and return a reusable `PreComponentTree`
+(or `null` for a missing key). Compile those trees when loading your backend data;
+the base translator handles argument resolution and preserves styles and children.
 
 ## Example usage
 
@@ -268,18 +345,18 @@ invoking `MiniMessage.deserialize` altogether (~11x faster than delegation).
 
 The difference between the modes is measurable (raw data in [`benchmark/tag-resolver.json`](benchmark/tag-resolver.json)):
 
-| Benchmark (JDK 21, `-wi 10 -i 20 -f 3`) | ns/op | Allocation | Notes |
-|---|---|---|---|
-| `fastRenderPlaceholders` (fast path, no instance) | 2 897 | 6.1 KB | Baseline fast path |
-| `fastRenderPlaceholdersWithInstance` (instance, nothing delegated) | 3 144 | 6.3 KB | Negligible instance overhead |
-| `fastRenderPlaceholdersExperimental` (standalone experimental) | 3 716 | 8.1 KB | Direct in-memory dispatch |
-| `fastRenderNativePlaceholders` (native TagResolver) | 2 294 | 4.1 KB | Lowest overhead |
-| `fastRenderMixedLiteralFallback` (no instance, literal fallback) | 8 124 | 13.9 KB | Unsupported tags left unparsed |
-| `fastRenderMixedExperimental` (standalone, arguments + modifying) | 7 466 | 14.9 KB | **~11.1x faster** than delegation |
-| `fastRenderMixedWithDelegation` (instance, delegated tags) | 82 927 | 157.5 KB | Reconstructs fragments + deserializes |
-| `miniMessageMixed` (plain MiniMessage) | 80 509 | 136.9 KB | Traditional MiniMessage baseline |
-| `fastCompileAndRenderMixedExperimental` (compile + render) | 23 031 | 58.0 KB | **~4.3x faster** than delegation |
-| `fastCompileAndRenderMixedWithDelegation` (compile + render) | 99 632 | 199.8 KB | Delegation compile + render |
+| Benchmark (JDK 21, `-wi 10 -i 20 -f 3`)                            | ns/op  | Allocation | Notes                                 |
+|--------------------------------------------------------------------|--------|------------|---------------------------------------|
+| `fastRenderPlaceholders` (fast path, no instance)                  | 2 897  | 6.1 KB     | Baseline fast path                    |
+| `fastRenderPlaceholdersWithInstance` (instance, nothing delegated) | 3 144  | 6.3 KB     | Negligible instance overhead          |
+| `fastRenderPlaceholdersExperimental` (standalone experimental)     | 3 716  | 8.1 KB     | Direct in-memory dispatch             |
+| `fastRenderNativePlaceholders` (native TagResolver)                | 2 294  | 4.1 KB     | Lowest overhead                       |
+| `fastRenderMixedLiteralFallback` (no instance, literal fallback)   | 8 124  | 13.9 KB    | Unsupported tags left unparsed        |
+| `fastRenderMixedExperimental` (standalone, arguments + modifying)  | 7 466  | 14.9 KB    | **~11.1x faster** than delegation     |
+| `fastRenderMixedWithDelegation` (instance, delegated tags)         | 82 927 | 157.5 KB   | Reconstructs fragments + deserializes |
+| `miniMessageMixed` (plain MiniMessage)                             | 80 509 | 136.9 KB   | Traditional MiniMessage baseline      |
+| `fastCompileAndRenderMixedExperimental` (compile + render)         | 23 031 | 58.0 KB    | **~4.3x faster** than delegation      |
+| `fastCompileAndRenderMixedWithDelegation` (compile + render)       | 99 632 | 199.8 KB   | Delegation compile + render           |
 
 Supplying an instance costs nothing when no tag is delegated. Delegating tags via `MiniMessageTags.of(miniMessage, ...)`
 costs roughly **5–7 µs and ~10 KB per delegated tag**, because it triggers a full `MiniMessage.deserialize` on a
@@ -310,12 +387,12 @@ PreComponentTree tree = compiler.compile("""
     """);
 ```
 
-| Tag | Arguments | Behavior |
-|---|---|---|
-| `<click:show_dialog:'key'>…</click>` | a key from the server dialog registry | the click opens that dialog |
-| `<show_dialog:'title':'body':'button'>…</show_dialog>` | MiniMessage text; `body` and `button` are optional | opens a notice dialog built with `Dialog.create` |
-| `<item_hover:'reference':count>…</item_hover>` | base64 item bytes or a material name, optional count | shows the item, including its data components |
-| `<papi:'expression'>` | a PlaceholderAPI expression | resolves the value at render time |
+| Tag                                                    | Arguments                                            | Behavior                                         |
+|--------------------------------------------------------|------------------------------------------------------|--------------------------------------------------|
+| `<click:show_dialog:'key'>…</click>`                   | a key from the server dialog registry                | the click opens that dialog                      |
+| `<show_dialog:'title':'body':'button'>…</show_dialog>` | MiniMessage text; `body` and `button` are optional   | opens a notice dialog built with `Dialog.create` |
+| `<item_hover:'reference':count>…</item_hover>`         | base64 item bytes or a material name, optional count | shows the item, including its data components    |
+| `<papi:'expression'>`                                  | a PlaceholderAPI expression                          | resolves the value at render time                |
 
 `PaperTags.compiler()` installs the Paper tags and the registry-backed dialog
 resolver. If you build the compiler yourself, use `PaperTags.withDefaults()` for
@@ -355,22 +432,22 @@ compilation happens once and is cached. Complete raw data is available in [`benc
 
 Input: `<green>[Server]</green> <white>Welcome!</white> <yellow>Type <bold>/help</bold> for commands.</yellow>`
 
-| Benchmark | ns/op | Allocation | vs MiniMessage |
-|---|---|---|---|
-| MiniMessage.deserialize | 10 236 | 14.0 KB | baseline |
-| FastMiniMessage render (cached) | 0.89 | 0 B | **~11 500x faster** |
-| FastMiniMessage compile + render | 2 297 | 5.4 KB | **~4.5x faster** |
+| Benchmark                        | ns/op  | Allocation | vs MiniMessage      |
+|----------------------------------|--------|------------|---------------------|
+| MiniMessage.deserialize          | 10 236 | 14.0 KB    | baseline            |
+| FastMiniMessage render (cached)  | 0.89   | 0 B        | **~11 500x faster** |
+| FastMiniMessage compile + render | 2 297  | 5.4 KB     | **~4.5x faster**    |
 
 ### Complex, long input (Lorem ipsum + nested tags, gradients, hover, click, malformed input)
 
 Input: a long Lorem-ipsum string with deep nesting, all tags, emoji/surrogates and common
 malformed constructs, repeated 3x.
 
-| Benchmark | ns/op | Allocation | vs MiniMessage |
-|---|---|---|---|
-| MiniMessage.deserialize | 744 418 | 805.6 KB | baseline |
-| FastMiniMessage render (cached) | 5 258 | 8.9 KB | **~142x faster** |
-| FastMiniMessage compile + render | 169 276 | 277.3 KB | **~4.4x faster** |
+| Benchmark                        | ns/op   | Allocation | vs MiniMessage   |
+|----------------------------------|---------|------------|------------------|
+| MiniMessage.deserialize          | 744 418 | 805.6 KB   | baseline         |
+| FastMiniMessage render (cached)  | 5 258   | 8.9 KB     | **~142x faster** |
+| FastMiniMessage compile + render | 169 276 | 277.3 KB   | **~4.4x faster** |
 
 Run the benchmarks yourself with the intense profile
 (`-wi 10 -i 20 -f 3 -w 3s -r 3s`):
@@ -407,3 +484,25 @@ not tree shape, since FastMiniMessage deliberately flattens style wrappers.
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+### Tree ownership and runtime caching
+
+A `PreComponentTree` owns a copy of its input nodes. `visit(visitor)` edits an isolated
+copy and publishes the completed tree with fresh caches; if the visitor throws, the
+previous tree remains intact. Retaining a visited node does not allow later mutation
+of the published tree. Render calls use a single snapshot. Serialize concurrent edits
+externally to avoid overwriting another edit.
+
+Custom `PreComponent` implementations should leave `isScopeIndependent()` false
+unless their output ignores runtime resolvers, including those used by their children.
+Static, scope-independent nodes retain their caches even when unrelated placeholders
+are supplied. `deepCopy()` implementations must isolate mutable nodes and caches.
+
+Use `tree.inspect(snapshot -> ...)` for read-only traversal. Each immutable snapshot
+contains the node type, style, literal text (when applicable), child count and caching
+flags. Inspection preserves the published tree and its caches; it does not expose
+mutable nodes. Use `visit` only for edits.
+
+Component-valued tag arguments (translations, hover text/entity names, selector and
+NBT separators) preserve runtime components and literal placeholders. Scalar arguments
+such as click commands retain quotes, colons and backslashes after substitution.

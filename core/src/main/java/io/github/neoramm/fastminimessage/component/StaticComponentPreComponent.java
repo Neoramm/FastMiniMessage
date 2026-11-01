@@ -32,6 +32,11 @@ public final class StaticComponentPreComponent extends PreComponent {
     }
 
     @Override
+    public boolean isScopeIndependent() {
+        return true;
+    }
+
+    @Override
     public boolean isStatic() {
         return true;
     }

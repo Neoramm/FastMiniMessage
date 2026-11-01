@@ -49,6 +49,17 @@ public abstract class PreComponent {
         return false;
     }
 
+    public boolean isScopeIndependent() {
+        return false;
+    }
+
+    protected final boolean childrenAreScopeIndependent() {
+        final PreComponent @Nullable [] kids = children;
+        if (kids == null) return true;
+        for (final PreComponent child : kids) if (!child.isScopeIndependent()) return false;
+        return true;
+    }
+
     public boolean isDirectStyleLeaf() {
         return false;
     }
