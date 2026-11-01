@@ -228,10 +228,11 @@ public final class MiniMessageCompiler {
         }
     }
 
-    private static boolean isComponentArgument(final @NotNull TagNode node) {
+    private boolean isComponentArgument(final @NotNull TagNode node) {
         final @NotNull Arguments args = Arguments.parse(node.rawArgs());
+        final @Nullable ComponentResolver resolver = registry.resolve(node.tagName());
         for (int i = 0; i < args.size(); i++) {
-            if (!TagArgumentTypes.isComponent(node.tagName(), args, i) && containsPlaceholder(args.get(i))) return false;
+            if (!TagArgumentTypes.isComponent(resolver, node.tagName(), args, i) && containsPlaceholder(args.get(i))) return false;
         }
         return true;
     }

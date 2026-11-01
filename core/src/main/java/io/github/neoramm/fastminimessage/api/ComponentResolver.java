@@ -48,4 +48,21 @@ public interface ComponentResolver {
     default boolean isSelfClosing() {
         return false;
     }
+
+    /**
+     * Returns whether the argument at {@code index} is a sub-component (a nested MiniMessage string)
+     * rather than a plain scalar value.
+     *
+     * <p>The compiler uses this to skip placeholder substitution on that argument slot, preserving
+     * any {@code <tag>} syntax it contains instead of flattening it to plain text.</p>
+     *
+     * <p>The default implementation returns {@code false} for every index.</p>
+     *
+     * @param index the zero-based argument index
+     * @param args  the full argument list for the tag invocation
+     * @return {@code true} when the argument at {@code index} should be treated as a MiniMessage sub-component
+     */
+    default boolean isComponentArgument(int index, @NotNull Arguments args) {
+        return false;
+    }
 }

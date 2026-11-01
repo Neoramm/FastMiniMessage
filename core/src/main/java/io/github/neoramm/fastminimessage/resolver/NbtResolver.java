@@ -84,4 +84,9 @@ public final class NbtResolver implements ComponentResolver {
     public boolean isSelfClosing() {
         return true;
     }
+
+    @Override
+    public boolean isComponentArgument(final int index, final @NotNull Arguments args) {
+        return index == 3 && !"interpret".equalsIgnoreCase(args.get(3)) && !"true".equalsIgnoreCase(args.get(3));
+    }
 }

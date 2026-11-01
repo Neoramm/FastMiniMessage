@@ -36,4 +36,9 @@ public final class TranslatableResolver implements ComponentResolver {
     public @NotNull String @NotNull [] names() {
         return NAMES;
     }
+
+    @Override
+    public boolean isComponentArgument(final int index, final @NotNull Arguments args) {
+        return index >= 1;
+    }
 }

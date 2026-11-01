@@ -32,4 +32,9 @@ public final class SelectorResolver implements ComponentResolver {
     public boolean isSelfClosing() {
         return true;
     }
+
+    @Override
+    public boolean isComponentArgument(final int index, final @NotNull Arguments args) {
+        return index == 1;
+    }
 }

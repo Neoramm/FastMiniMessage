@@ -170,4 +170,11 @@ public final class HoverResolver implements ComponentResolver {
     public @NotNull String @NotNull [] names() {
         return NAMES;
     }
+
+    @Override
+    public boolean isComponentArgument(final int index, final @NotNull Arguments args) {
+        final String action = args.getFirst("");
+        return index == 1 && "show_text".equalsIgnoreCase(action)
+            || index == 3 && "show_entity".equalsIgnoreCase(action);
+    }
 }

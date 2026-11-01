@@ -232,7 +232,8 @@ public class DeferredTagPreComponent extends PreComponent {
         boolean changed = false;
         for (int i = 0; i < templateArgs.size(); i++) {
             final @NotNull String original = templateArgs.get(i, "");
-            final @NotNull String value = TagArgumentTypes.isComponent(tagName, templateArgs, i)
+            final @NotNull String value = TagArgumentTypes.isComponent(
+                    compiler != null ? compiler.findResolver(tagName) : null, tagName, templateArgs, i)
                 ? original : substitute(original, scope, pointered);
             changed |= !original.equals(value);
             if (i > 0) encoded.append(':');
