@@ -2,44 +2,34 @@
 
 # FastMiniMessage
 
-FastMiniMessage is a fast, precompiled implementation of the MiniMessage format for
-[Kyori Adventure](https://docs.papermc.io/adventure/). It parses MiniMessage strings at
-compile time into a flattened component tree, so rendering at runtime is orders of
-magnitude faster than calling `MiniMessage.deserialize` on every use.
-
-It is a **layer on top of Adventure's API** — just like MiniMessage — not a replacement
-for it. Adventure remains the underlying model (`Component`, `Style`, `TextColor`, …).
+FastMiniMessage is a high-performance, precompiled MiniMessage implementation for [Kyori Adventure](https://docs.papermc.io/adventure/). It compiles MiniMessage strings once into an immutable, style-flattened `PreComponentTree` (`TemplateNode`), making runtime rendering orders of magnitude faster than calling `MiniMessage.deserialize` on every use.
 
 ## Features
 
-- Expressive equivalence with MiniMessage (verified by a matrix of ~70 equivalence tests).
-- Compile-time style flattening and adjacent-literal merging (zero-wrapper render path).
-- Cached renders for static trees; bounded work per render.
-- All standard MiniMessage tags: colors, decorations, click/hover/insert/shadow, gradients
-  (including nested), rainbow, pride, keybinds, translatables, sprites, heads, newlines,
-  font, transition, selector, score, nbt, reset, and unknown-tag fallbacks.
-- Unified runtime `TagResolver` architecture: seamless handling of unclosed tags (`<prefix> <player>`),
-  dynamic placeholders (`TagResolver.inserting`), modifiers (`TagResolver.modifying`), and argument-based tags.
-- Optional bridge for MiniMessage `Placeholder` and `TagResolver` instances, with an
-  optional delegation mode that uses a `MiniMessage` instance for argument-based and
-  `Modifying` tags.
-- Localization with precompiled translation stores, Adventure `GlobalTranslator`,
-  indexed/named arguments, locale fallbacks, and UTF-8 resource bundles.
-- Optional Paper module with dialog, item hover and PlaceholderAPI tags.
-- Java 21+ core, no new runtime dependencies beyond Adventure.
+- **Expressive Equivalence**: Verified against MiniMessage across ~70 diverse test cases (colors, decorations, click/hover/insert/shadow, nested gradients, rainbow, pride, translatables, sprites, heads, selectors, score, NBT, legacy `&` codes, and fallbacks).
+- **Compile-Time Folding**: Flattens nested styles, merges adjacent literals, and pre-evaluates static subtrees into a single `TemplateNode.Static` with zero-allocation rendering.
+- **Typed Runtime Payloads (`PayloadSchema`)**: Supports inserting placeholders, dynamic argument tags (`<tag:arg1:arg2>`), modifying decorators (`ComponentModifier`), and unclosed tags (`<prefix> <player>`).
+- **Dynamic Tag Arguments**: Interpolates runtime placeholders inside tag arguments (`<click:run_command:'/<cmd>'>`, `<gradient:'<c1>':'<c2>'>`, `<hover:show_text:'<msg>'>`) without re-scanning at render time.
+- **Adventure Bridge & Localization**: Optional zero-deserialize bridge (`AdventureTags`) for standard Adventure `TagResolver`s and precompiled `FastMiniMessageTranslationStore` for `GlobalTranslator`.
+- **Paper Module**: Built-in support for registry dialogs, inline notice dialogs (`<show_dialog>`), item stack hovers (`<item_hover>`), and PlaceholderAPI (`<papi>`).
 
-## Modules
+## Modules & Installation
 
-| Module  | Artifact                                  | Requires                   |
-|---------|-------------------------------------------|----------------------------|
-| `core`  | `io.github.neoramm:fastminimessage`       | Java 21+, Adventure 5.2.0+ |
-| `paper` | `io.github.neoramm:fastminimessage-paper` | Java 25+, Paper 26.2+      |
+| Module | Artifact | Requirements |
+|--------|----------|--------------|
+| `core` | `io.github.neoramm:fastminimessage` | Java 21+, Adventure 5.2.0+ |
+| `paper` | `io.github.neoramm:fastminimessage-paper` | Java 25+, Paper 26.2+ |
 
-The Paper module is optional. It adds tags that need the Paper API (dialogs, item
-stacks) and an optional PlaceholderAPI tag; the core module remains platform
-independent.
+### Gradle (Kotlin DSL)
 
-## Installation (Maven)
+```kotlin
+dependencies {
+    implementation("io.github.neoramm:fastminimessage:<version>")
+    implementation("io.github.neoramm:fastminimessage-paper:<version>") // Optional: Paper 26.2+
+}
+```
+
+### Maven
 
 ```xml
 <dependency>
@@ -49,460 +39,182 @@ independent.
 </dependency>
 ```
 
-On Paper 26.2+, add the Paper module next to the core artifact:
-
-```xml
-<dependency>
-    <groupId>io.github.neoramm</groupId>
-    <artifactId>fastminimessage-paper</artifactId>
-    <version>{version}</version>
-</dependency>
-```
-
-Gradle (Kotlin DSL):
-
-```kotlin
-implementation("io.github.neoramm:fastminimessage:<version>")
-implementation("io.github.neoramm:fastminimessage-paper:<version>") // Paper 26.2+
-```
-
-## Comparison
-
-| Feature / Metric                 | FastMiniMessage (`PreComponentTree`)                                                 | Standard MiniMessage (`deserialize`)                                     | MiniMessage + `TextReplacementConfig`                                         |
-|----------------------------------|--------------------------------------------------------------------------------------|--------------------------------------------------------------------------|-------------------------------------------------------------------------------|
-| **Core Architecture**            | Compiles string once into a flattened AST; renders directly via fast-path            | Re-tokenizes, parses, and builds the full component tree on every render | Deserializes once, then recursively traverses and rebuilds the component tree |
-| **Static Render Latency**        | **~0.89 ns** (cached static reference)                                               | **~10 236 ns** (10+ µs per call)                                         | **~10 236 ns** (initial) + 0 ns (if cached Component without replacement)     |
-| **Dynamic Render Latency**       | **~2 294 – 2 897 ns** (~2.3 – 2.9 µs with placeholders)                              | **~10 236 ns – 744 418 ns** (scales with template size)                  | **~15 000 ns – 120 000 ns** (recursive tree traversal & regex matching)       |
-| **Garbage Collection (GC)**      | **0 B (Zero GC)** on static renders; minimal on dynamic                              | **14.0 KB – 805.6 KB** allocated per render                              | High GC; clones `Component` and `TextComponent` builders for every node match |
-| **Static Tree Optimization**     | Built-in `isStatic()` detection and automatic zero-allocation caching                | None; full parsing is re-executed every single time                      | Manual; developer must manage cached `Component` instances                    |
-| **Style Flattening**             | Flattens nested wrappers and merges adjacent identical styles at compile time        | Retains deeply nested component hierarchy and redundant style wrappers   | No flattening; replacements split text components into more fragments         |
-| **Dynamic & Argument Tags**      | Native support (`<tag:arg1:arg2>`), unclosed tags, and modifiers evaluated on render | Requires re-parsing the entire template with `TagResolver`               | Not supported; limited to plain string or regex replacements                  |
-| **Viewer Context (`Pointered`)** | First-class (`tree.render(player)` auto-resolves `<player>`, PAPI, dialogs)          | Must pass context to deserializer on every invocation                    | None; developer must extract player properties manually beforehand            |
-
-## Localization
-
-`FastMiniMessageTranslationStore` integrates with Adventure's
-[localization system](https://docs.papermc.io/adventure/localization/). Messages are
-compiled when registered, and reused when translated. No MiniMessage runtime
-dependency is required.
+## Quick Start
 
 ```java
-import io.github.neoramm.fastminimessage.translation.Argument;
-import io.github.neoramm.fastminimessage.translation.FastMiniMessageTranslationStore;
-import net.kyori.adventure.key.Key;
+import io.github.neoramm.fastminimessage.v2.MiniMessageCompiler;
+import io.github.neoramm.fastminimessage.v2.ResolverRegistry;
+import io.github.neoramm.fastminimessage.v2.model.PayloadSchema;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.translation.GlobalTranslator;
 
-import java.util.Locale;
-
-final FastMiniMessageTranslationStore translations =
-    FastMiniMessageTranslationStore.create(Key.key("myplugin:messages"));
-translations.defaultLocale(Locale.ENGLISH);
-translations.register("welcome", Locale.ENGLISH, "<green>Welcome, <name>!</green>");
-translations.register("welcome", Locale.of("es"), "<green>¡Bienvenido, <name>!</green>");
-GlobalTranslator.translator().addSource(translations);
-
-final Component message = Component.translatable("welcome", Argument.string("name", "Alex"));
-final Component spanish = GlobalTranslator.render(message, Locale.of("es", "PE"));
+final var layout = PayloadSchema.builder();
+final var name = layout.key("name", Component.class);
+final var registry = ResolverRegistry.withDefaults(layout.build())
+    .registerPlaceholder("name", (final var scope) -> scope.payload(name));
+final var template = new MiniMessageCompiler(registry).compile("Hello <name>!");
+final var rendered = template.render((final var builder) -> builder.payload(name, Component.text("Hector")));
 ```
 
-On platforms that support automatic global translation, send `message` directly to
-the audience. Otherwise, render it explicitly as above. Remove the store with
-`GlobalTranslator.translator().removeSource(translations)` when disabling your plugin.
-Paper does not apply global translation in every context, including item text.
+## Registered Placeholders and Typed Payloads
 
-Ordinary `Component.translatable` arguments are available as `<arg:0>`,
-`<argument:1>`, and so on. The native `Argument` class above additionally provides
-`component`, `string`, `numeric`, `bool`, and `argument` factories: named values are
-available both by name and by index. String arguments are inserted literally, so
-text such as `<red>` cannot inject formatting. Use names that do not collide with
-built-in tags or your compiler's registered tags, which are resolved at compile time.
-Invalid indices retain their literal tag text.
+This is the recommended native API. Register behavior before compilation and supply only payload values at render time.
+For dynamic tags with arguments, register a `TagSpec.LeafRule`; see the runtime payload guide.
 
-`Argument.tagResolver(...)` supplies FastMiniMessage runtime resolvers, including
-insertion, modification, and argument-based tags. `Argument.target(viewer)` supplies
-a rendering target; otherwise, the target exposes the requested `Identity.LOCALE`.
-Resolver and target arguments do not consume positional indices. Only one target
-is allowed per message. These factories belong to FastMiniMessage, not MiniMessage's
-separate `Argument` class.
-
-The store implements `TranslationStore.StringBased<String>` and accepts maps,
-key sets with lookup functions, resource bundles, and UTF-8 `.properties` paths:
+Create payload keys through one schema builder, finish the schema, then pass it to the registry. Indices are assigned
+consecutively and key constructors are private. The compiler exposes `payloadCount()` and `scopeBuilder()` using that
+fixed schema. Registered placeholder and modifier functions are captured during compilation.
 
 ```java
-import java.nio.file.Path;
+import io.github.neoramm.fastminimessage.v2.MiniMessageCompiler;
+import io.github.neoramm.fastminimessage.v2.ResolverRegistry;
+import io.github.neoramm.fastminimessage.v2.model.PayloadSchema;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
-translations.registerAll(Locale.ENGLISH, Path.of("messages_en.properties"), false);
+final var layout = PayloadSchema.builder();
+final var name = layout.key("name", Component.class);
+final var message = layout.key("message", Component.class);
+final var tint = layout.key("tint", NamedTextColor.class);
+final var registry = ResolverRegistry.withDefaults(layout.build())
+    .registerPlaceholder("name", (final var scope) -> scope.payload(name))
+    .registerPlaceholder("message", (final var scope) -> scope.payload(message))
+    .registerModifier("tint", (final var component, final var scope) -> component.color(scope.payload(tint)));
+final var compiler = new MiniMessageCompiler(registry);
+final var template = compiler.compile("<name>: <tint><message></tint>");
+
+final var scope = compiler.scopeBuilder()
+    .payload(name, Component.text("Hector"))
+    .payload(message, Component.text("Hello!"))
+    .payload(tint, NamedTextColor.GREEN)
+    .build();
+final var rendered = template.render(scope);
 ```
 
-Load files during startup or asynchronously, outside the server tick. Use `false`
-for `escapeSingleQuotes` to preserve apostrophes in MiniMessage text. File read
-failures throw `UncheckedIOException`. Duplicate key/locale pairs are rejected;
-`unregister(key)` removes all locales for a key before registering replacements.
+Use `.viewer(pointered)` on the scope builder when callbacks need a viewer. Every custom payload must be assigned a
+non-null value of its declared type. Keys from another schema are rejected. The scope builder transfers its array to the
+finished scope and cannot be reused after `build()`. Calling `build()` with missing payloads fails without consuming it.
+Builders must be confined to one thread. Finished scopes can be shared when their payload objects and callbacks are safe
+to share.
 
-Locale lookup follows Adventure: exact locale, language-only locale, the store's
-default (initially `Locale.US`), then Adventure's global default. `contains(key,
-locale)` checks only explicit registrations; `canTranslate` includes fallbacks.
-Missing translations return `null`, allowing other translation sources and client
-translations to handle the key. Source styles and children are retained; nested
-translations are rendered by Adventure's component renderer or `GlobalTranslator`.
+`render(scope)` reuses the scope directly, without allocating a separate context or copying payloads. Reusing a
+scope is appropriate while its inputs remain valid. Creating a new builder and scope for each event still allocates;
+callbacks and Adventure component construction can also allocate. Mutable payload objects remain caller-owned and must
+follow their own threading rules. Replacing a registry entry affects future compilations, while existing templates retain
+their captured functions. Use `render(consumer)` to configure a fresh scope for one call, or `render(scope)` to reuse a finished scope.
 
-For custom tags, pass a configured `MiniMessageCompiler` to `create(name, compiler)`.
-Finish configuring it before registration and avoid mutating it while rendering.
-For a custom translation backend, extend `FastMiniMessageTranslator`, implement
-`name()` and `getTranslation(key, locale)`, and return a reusable `PreComponentTree`
-(or `null` for a missing key). Compile those trees when loading your backend data;
-the base translator handles argument resolution and preserves styles and children.
+### Reusable Mutable Scope (`RenderScope.Mutable`)
 
-## Example usage
-
-### 1. Precompiling messages (`Messages.java`)
-
-Compile templates once when loading classes or configurations. The compiled `PreComponentTree` is thread-safe and can be reused indefinitely across all players:
+For high-throughput loops (e.g. broadcasting personalized messages to many players), allocate a mutable scope once and update its values in-place with **zero GC allocations**:
 
 ```java
-package com.example.plugin;
-
-import io.github.neoramm.fastminimessage.MiniMessageCompiler;
-import io.github.neoramm.fastminimessage.ResolverRegistry;
-import io.github.neoramm.fastminimessage.model.PreComponentTree;
-import org.jetbrains.annotations.NotNull;
-
-public final class Messages {
-
-    private static final @NotNull MiniMessageCompiler COMPILER =
-        new MiniMessageCompiler(ResolverRegistry.withDefaults());
-
-    public static final @NotNull PreComponentTree WELCOME =
-        COMPILER.compile("<green>Welcome <gold><player></gold> to the server!</green>");
-
-    private Messages() {
-    }
+final var mutableScope = template.mutableScope();
+for (final Player player : players) {
+    mutableScope.viewer(player)
+        .payload(name, player.displayName())
+        .payload(coins, player.getCoins());
+    player.sendMessage(template.render(mutableScope));
 }
 ```
 
-### 2. Rendering in event listeners (`PlayerJoinListener.java`)
+A `RenderScope.Mutable` is single-threaded and allows in-place mutation of `.viewer(pointered)` and `.payload(key, value)`. You can also snapshot it with `.toImmutable()` or convert any existing scope to mutable via `.toMutable()`.
 
-When the player joins, render the precompiled tree directly for the player. The `<player>` placeholder is resolved dynamically from the player's identity without re-parsing the MiniMessage format:
+## Default Payload Schema
 
-```java
-package com.example.plugin;
+`PayloadSchema.withDefaults()` contains three optional, typed keys: `ADVENTURE_TAGS_KEY` for `AdventureTags`,
+`RUNTIME_TAGS_KEY` for a `RuntimeTagBridge`, and `TRANSLATION_ARGUMENTS_KEY` for indexed `TranslationPayload` arguments.
+`ResolverRegistry.withDefaults()` uses this schema. Unset default keys have no resolver; `payloadOrNull(key)` returns
+null for an unset key. `payload(key)` requires a value.
 
-import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.jetbrains.annotations.NotNull;
+Use `PayloadSchema.builderWithDefaults()` to add required custom keys while retaining the shared default keys.
+`PayloadSchema.builder()` creates a custom-only layout. `payloadCount()` counts all slots, including optional defaults.
+Keys are created only by schema builders, and cannot be forged from arbitrary indices.
 
-public final class PlayerJoinListener implements Listener {
+Legacy runtime resolver adapters can be combined once with `TagResolver.combine(...)` and supplied through
+`builder.payload(RUNTIME_TAGS_KEY, resolvers)`. Registered callbacks receive the complete `RenderScope`, including
+`scope.viewer()`. Translation arguments carry payloads with `Argument.payload(key, value)`.
 
-    @EventHandler
-    public void onPlayerJoin(final @NotNull PlayerJoinEvent event) {
-        final Player player = event.getPlayer();
-        player.sendMessage(Messages.WELCOME.render(player));
-    }
-}
-```
+This API replaces the old viewer/binding render overloads. `render(consumer)` creates a builder and scope; captured
+lambdas may also allocate. For the lowest allocation overhead, prepare a scope once and call `render(scope)`.
 
-## Quick start
+## Benchmarks
 
-```java
-MiniMessageCompiler compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
+JMH (`v1.37`) results on OpenJDK 21.0.12.1 (`-wi 5 -i 18 -f 2 -w 1s -r 1s`, `avgt` mode, GC profiler) comparing FastMiniMessage v2 against Adventure's `MiniMessage.deserialize` baseline and FastMiniMessage v1.
 
-// Compile once, render many times.
-PreComponentTree tree = compiler.compile("<red>Hello <bold>world</bold></red>");
-Component rendered = tree.render(player);   // Pointered context
+### 1. Simple, Common Message (`SimpleCommonBenchmark`)
 
-// Unified runtime TagResolvers (convenient unclosed tags in templates)
-PreComponentTree chat = compiler.compile("<prefix> <player>: <message>");
-Component message = chat.render(player,
-    TagResolver.resolver("prefix", Component.text("[Admin]", NamedTextColor.RED)),
-    TagResolver.resolver("player", player.getName()),
-    TagResolver.resolver("message", "Hello everyone!")
-);
+Input: `<green>[Server]</green> <white>Welcome!</white> <yellow>Type <bold>/help</bold> for commands.</yellow>` alongside unclosed chat formats (`<prefix> <name><colon> <message>`) and dynamic placeholders.
 
-// Dynamic tags with arguments
-PreComponentTree badges = compiler.compile("<badge:vip:gold> <player> joined");
-Component badged = badges.render(player,
-    TagResolver.dynamic("badge", (args, ctx) ->
-        Component.text("[" + args.getFirst().toUpperCase() + "] ", NamedTextColor.GOLD)),
-    TagResolver.resolver("player", "Alice")
-);
+| Benchmark Method | Description | Score (ns/op) | Allocation (B/op) | Speedup vs MiniMessage |
+|------------------|-------------|--------------:|------------------:|-----------------------:|
+| `miniMessageDeserialize` | `MiniMessage.deserialize` (baseline) | 10,516.45 ± 439.89 | 14,056 B (~13.7 KB) | 1.0x (baseline) |
+| `miniPreCompilerRender` (v2) | Precompiled static render (cached) | **0.95 ± 0.03** | **0 B** | **~11,069.9x faster** |
+| `v1Render` (v1) | Precompiled static render (1.x) | 1.54 ± 0.02 | 0 B | ~6,828.9x faster |
+| `fastRenderUnclosedChat` (v2) | Unclosed chat tags (`<prefix> <name><colon> <message>`) | **175.17 ± 4.55** | **376 B** | **~60.0x faster** |
+| `v1RenderUnclosedChat` (v1) | Unclosed chat tags (1.x) | 161.24 ± 4.25 | 320 B | ~65.2x faster |
+| `fastRenderNativeTags` (v2) | Dynamic tags / placeholders (`<name>`, `<rank>`, `<upper>`, `<tint>`) | **758.37 ± 31.82** | **1,376 B (~1.3 KB)** | **~45.0x faster** |
+| `v1RenderNativeTags` (v1) | Dynamic tags / placeholders (1.x) | 1,594.27 ± 49.26 | 1,824 B (~1.8 KB) | ~21.4x faster |
+| `fastRenderTagsAll` (v2) | All tag types (custom + standard) | **642.90 ± 1.98** | **1,376 B (~1.3 KB)** | **~53.0x faster** |
+| `fastRenderTagsPlaceholders` (v2) | Placeholders only | **960.20 ± 19.34** | **1,552 B (~1.5 KB)** | **~35.5x faster** |
+| `miniMessageTagsDeserialize` | `MiniMessage.deserialize` with tags (baseline) | 34,099.51 ± 919.49 | 55,832 B (~54.5 KB) | 1.0x (baseline) |
+| `miniPreCompilerCompileAndRender` (v2) | Cold compile + render | **2,797.74 ± 72.65** | **5,640 B (~5.5 KB)** | **~3.8x faster** |
+| `v1CompileAndRender` (v1) | Cold compile + render (1.x) | 2,413.65 ± 46.35 | 5,640 B (~5.5 KB) | ~4.4x faster |
 
-// Runtime modifiers (can wrap unclosed blocks or explicitly closed blocks)
-PreComponentTree announcement = compiler.compile("<shout>alert: <player> connected");
-Component shouted = announcement.render(player,
-    TagResolver.modifying("shout", ComponentModifiers.uppercase()),
-    TagResolver.resolver("player", "Bob")
-); // "ALERT: BOB CONNECTED"
-```
+### 2. Complex, Long Message (`ComplexLongBenchmark`)
 
-## Unified runtime tag resolvers
+Input: A large multi-tag stress payload (nested style tags, color overrides, click commands, hover hints with nested styles, gradients, rainbow, shadow, keybinds, translations with args, item hovers, score, selector, NBT, pride, insert, and malformed tags repeated 3x).
 
-FastMiniMessage provides a unified `TagResolver` interface that combines:
-1. **Inserting tags** (`TagResolver.inserting`, `TagResolver.resolver`, `Placeholder`): Inserts a string or component.
-2. **Modifying tags** (`TagResolver.modifying`, `ModifierResolver`, `ComponentModifier`): Transforms wrapped or following child components at render time.
-3. **Dynamic argument tags** (`TagResolver.dynamic`): Reads arguments at render time (`<tag:arg1:arg2>`) and returns a component based on arguments and viewer context.
+| Benchmark Method | Description | Score (ns/op) | Allocation (B/op) | Speedup vs MiniMessage |
+|------------------|-------------|--------------:|------------------:|-----------------------:|
+| `miniMessageDeserialize` | `MiniMessage.deserialize` (baseline) | 774,322.10 ± 21,362.46 | 807,073 B (~788.2 KB) | 1.0x (baseline) |
+| `miniPreCompilerRender` (v2) | Precompiled static render (cached) | **1,518.45 ± 19.50** | **2,360 B (~2.3 KB)** | **~509.9x faster** |
+| `v1Render` (v1) | Precompiled static render (1.x) | 5,538.80 ± 218.21 | 8,856 B (~8.6 KB) | ~139.8x faster |
+| `fastRenderNativeTags` (v2) | Dynamic tags / placeholders (v2) | **5,491.14 ± 115.60** | **8,920 B (~8.7 KB)** | **~48.6x faster** |
+| `v1RenderNativeTags` (v1) | Dynamic tags / placeholders (1.x) | 8,729.01 ± 16.92 | 11,272 B (~11.0 KB) | ~30.6x faster |
+| `fastRenderTagsAll` (v2) | All tag types (custom + standard) | **5,820.75 ± 261.78** | **8,920 B (~8.7 KB)** | **~45.9x faster** |
+| `fastRenderTagsPlaceholders` (v2) | Placeholders only | **6,503.10 ± 89.98** | **10,648 B (~10.4 KB)** | **~41.1x faster** |
+| `miniMessageTagsDeserialize` | `MiniMessage.deserialize` with tags (baseline) | 267,028.56 ± 2,069.34 | 332,946 B (~325.1 KB) | 1.0x (baseline) |
+| `miniPreCompilerCompileAndRender` (v2) | Cold compile + render | **316,671.10 ± 4,505.69** | **441,220 B (~430.9 KB)** | **~2.45x faster** |
+| `v1CompileAndRender` (v1) | Cold compile + render (1.x) | 181,200.43 ± 3,648.66 | 288,481 B (~281.7 KB) | ~4.27x faster |
 
-### Real-world unclosed tags
+### 3. Adventure `TagResolver` Bridge (`AdventureTagsBenchmark`)
 
-In real Minecraft server templates, users frequently omit closing tags for convenience:
-`<prefix> Welcome <player>!` or `<shout>alerta para todos`.
+Evaluates adapting standard Adventure `TagResolver` instances via the `AdventureTags` zero-deserialize bridge against native MiniMessage and FastMiniMessage v1.
 
-FastMiniMessage compiles templates into an optimized precomponent tree. When an unclosed tag is encountered:
-- If resolved as an **inserting tag** (placeholder), it renders its value and seamlessly forwards all following text and siblings into the output without requiring `<player/>` or `</player>`.
-- If resolved as a **modifying tag**, it applies its transformation to the scope.
-- Enclosing styles (colors, decorations) naturally propagate to unclosed tags and following text, matching MiniMessage semantics.
+| Benchmark Method | Description | Score (ns/op) | Allocation (B/op) | Speedup vs MiniMessage |
+|------------------|-------------|--------------:|------------------:|-----------------------:|
+| `miniMessagePlaceholders` | `MiniMessage.deserialize` with placeholders | 38,900.19 ± 574.13 | 72,184 B (~70.5 KB) | 1.0x (baseline) |
+| `fastRenderPlaceholders` (v2) | FastMiniMessage `AdventureTags` bridge | **1,414.31 ± 99.20** | **2,664 B (~2.6 KB)** | **~27.5x faster** |
+| `fastRenderNativePlaceholders` (v2) | FastMiniMessage native placeholders | **1,450.32 ± 52.72** | **2,664 B (~2.6 KB)** | **~26.8x faster** |
+| `v1RenderPlaceholders` (v1) | FastMiniMessage placeholders (1.x) | 3,226.04 ± 23.81 | 6,256 B (~6.1 KB) | ~12.1x faster |
+| `miniMessageMixed` | `MiniMessage.deserialize` mixed tags | 85,358.17 ± 1,531.90 | 140,665 B (~137.4 KB) | 1.0x (baseline) |
+| `fastRenderMixed` (v2) | FastMiniMessage `AdventureTags` bridge (mixed) | **2,312.35 ± 45.67** | **4,008 B (~3.9 KB)** | **~36.9x faster** |
+| `fastRenderNativeMixed` (v2) | FastMiniMessage native mixed tags | **2,251.02 ± 62.39** | **4,008 B (~3.9 KB)** | **~37.9x faster** |
+| `v1RenderMixed` (v1) | FastMiniMessage mixed tags (1.x) | 8,790.67 ± 103.27 | 14,576 B (~14.2 KB) | ~9.7x faster |
+| `miniMessageEdgeCases` | `MiniMessage.deserialize` edge cases | 347,075.67 ± 962,168.36 | 54,070 B (~52.8 KB) | 1.0x (baseline) |
+| `fastRenderEdgeCases` (v2) | FastMiniMessage edge cases | **1,229.78 ± 27.90** | **2,160 B (~2.1 KB)** | **~282.2x faster** |
+| `v1RenderEdgeCases` (v1) | FastMiniMessage edge cases (1.x) | 3,846.82 ± 84.66 | 6,304 B (~6.2 KB) | ~90.2x faster |
 
-## MiniMessage placeholders and tag resolvers
-
-`MiniMessageTags` adapts Adventure's `Placeholder` factories and `TagResolver`
-instances to the same render-time resolution used by the library. There are two
-modes, and they differ in what happens to tags that the fast path cannot evaluate.
-
-### Fast path: `MiniMessageTags.of(resolvers...)`
-
-```java
-import io.github.neoramm.fastminimessage.compat.MiniMessageTags;
-import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-
-PreComponentTree tree = compiler.compile("<p> <name>");
-Component component = tree.render(player, MiniMessageTags.of(
-    Placeholder.unparsed("p", player.getName()),
-    Placeholder.unparsed("name", "Hector")
-));
-```
-
-This mode never calls MiniMessage. It handles:
-
-- every `Placeholder` factory: `unparsed`, `component`, `parsed` and `styling`;
-- custom `TagResolver.Single` and `TagResolver.WithoutArguments` resolvers;
-- composed resolvers such as `TagResolver.resolver(a, b)` or
-  `TagResolver.builder().tag(...).build()` when MiniMessage represents them as a map.
-
-Tags that cannot be evaluated through the public tag API — argument-based
-resolvers and `Modifying` tags — keep the **literal fallback**: the tag is
-rendered exactly as written, so `<upper:hello>` stays visible in the output.
-
-### Delegation: `MiniMessageTags.of(miniMessage, resolvers...)`
-
-```java
-MiniMessage miniMessage = MiniMessage.miniMessage();
-
-Component component = tree.render(player, MiniMessageTags.of(miniMessage,
-    Placeholder.unparsed("name", player.getName()),
-    TagResolver.resolver("upper", (args, context) ->
-        Tag.inserting(Component.text(args.pop().value().toUpperCase()))),
-    TagResolver.resolver("tint", (Modifying) (current, depth) ->
-        current.color(NamedTextColor.AQUA))
-));
-```
-
-This mode still resolves placeholders and fixed tags on the fast path. Only the
-unsupported tags from the resolver array are reconstructed as a small fragment,
-rendered by MiniMessage with the same target and resolvers, and inserted back into
-the precompiled tree. The instance supplies the parser and its configured tag set;
-the resolver array determines which tags are recognized. Tags that are not in the
-array are not delegated.
-
-`ParserDirective` tags always keep the literal fallback, even with an instance,
-because they change parser state outside the reconstructed fragment.
-
-### Standalone (Experimental): `ExperimentalMiniMessageTags.of(resolvers...)`
-
-```java
-import io.github.neoramm.fastminimessage.compat.ExperimentalMiniMessageTags;
-
-Component component = tree.render(player, ExperimentalMiniMessageTags.of(
-    Placeholder.unparsed("name", player.getName()),
-    TagResolver.resolver("upper", (args, context) ->
-        Tag.inserting(Component.text(args.pop().value().toUpperCase()))),
-    TagResolver.resolver("tint", (Modifying) (current, depth) ->
-        current.color(NamedTextColor.AQUA))
-));
-```
-
-This standalone adapter resolves argument-based resolvers and `Modifying` tags directly in memory
-without requiring a `MiniMessage` instance. By resolving Kyori's internal `ContextImpl` and
-`ArgumentQueueImpl` via `MethodHandle`, it eliminates string fragment reconstruction and avoids
-invoking `MiniMessage.deserialize` altogether (~11x faster than delegation).
-
-### Semantics
-
-- Native tags always take priority over bridged resolvers, so a bridged resolver
-  cannot override a built-in tag. Use placeholder keys that do not collide.
-- Tag names are matched case-insensitively, as MiniMessage does.
-- `Tag.selfClosingInserting` tags keep MiniMessage's literal closing-tag behavior
-  when used with children.
-- A `Placeholder.parsed` value is compiled once (bounded cache) and inserted as a
-  component, so a value that opens a tag and closes it outside the placeholder
-  boundary cannot affect the surrounding precompiled input.
-- `Placeholder` values are fixed at the time the resolver is built; for per-player
-  or otherwise dynamic values, build the resolver from the current value or use
-  the library's own runtime placeholders (`Placeholder.ofUnparsed`, etc.).
-
-### Cost
-
-The difference between the modes is measurable (raw data in [`benchmark/tag-resolver.json`](benchmark/tag-resolver.json)):
-
-| Benchmark (JDK 21, `-wi 10 -i 20 -f 3`)                            | ns/op  | Allocation | Notes                                 |
-|--------------------------------------------------------------------|--------|------------|---------------------------------------|
-| `fastRenderPlaceholders` (fast path, no instance)                  | 2 897  | 6.1 KB     | Baseline fast path                    |
-| `fastRenderPlaceholdersWithInstance` (instance, nothing delegated) | 3 144  | 6.3 KB     | Negligible instance overhead          |
-| `fastRenderPlaceholdersExperimental` (standalone experimental)     | 3 716  | 8.1 KB     | Direct in-memory dispatch             |
-| `fastRenderNativePlaceholders` (native TagResolver)                | 2 294  | 4.1 KB     | Lowest overhead                       |
-| `fastRenderMixedLiteralFallback` (no instance, literal fallback)   | 8 124  | 13.9 KB    | Unsupported tags left unparsed        |
-| `fastRenderMixedExperimental` (standalone, arguments + modifying)  | 7 466  | 14.9 KB    | **~11.1x faster** than delegation     |
-| `fastRenderMixedWithDelegation` (instance, delegated tags)         | 82 927 | 157.5 KB   | Reconstructs fragments + deserializes |
-| `miniMessageMixed` (plain MiniMessage)                             | 80 509 | 136.9 KB   | Traditional MiniMessage baseline      |
-| `fastCompileAndRenderMixedExperimental` (compile + render)         | 23 031 | 58.0 KB    | **~4.3x faster** than delegation      |
-| `fastCompileAndRenderMixedWithDelegation` (compile + render)       | 99 632 | 199.8 KB   | Delegation compile + render           |
-
-Supplying an instance costs nothing when no tag is delegated. Delegating tags via `MiniMessageTags.of(miniMessage, ...)`
-costs roughly **5–7 µs and ~10 KB per delegated tag**, because it triggers a full `MiniMessage.deserialize` on a
-reconstructed fragment. The experimental standalone bridge (`ExperimentalMiniMessageTags.of(...)`) avoids this cost
-by resolving arguments and transformations directly in memory, dropping mixed render times from **82.9 µs (157.5 KB)**
-down to **7.5 µs (14.9 KB)**.
-
-The bridge is optional: `adventure-text-minimessage` is only a compile-time
-dependency of the core module, so consumers using the bridge must have it on their
-runtime classpath.
-
-## Paper module
-
-`fastminimessage-paper` adds tags that need Paper API objects. It targets Paper
-26.2+ (Adventure 5.2.0, Java 25) and is compiled against the Paper API and
-PlaceholderAPI; both are `compileOnly`, so the server or plugin must provide them.
-
-```java
-import io.github.neoramm.fastminimessage.paper.PaperTags;
-
-MiniMessageCompiler compiler = PaperTags.compiler();
-
-PreComponentTree tree = compiler.compile("""
-    <click:show_dialog:'minecraft:server_links'>Server links</click>
-    <show_dialog:'Welcome':'Choose an option':'OK'>Inline dialog</show_dialog>
-    <item_hover:'minecraft:diamond':3>A diamond</item_hover>
-    Hello <papi:'%player_name%'>
-    """);
-```
-
-| Tag                                                    | Arguments                                            | Behavior                                         |
-|--------------------------------------------------------|------------------------------------------------------|--------------------------------------------------|
-| `<click:show_dialog:'key'>…</click>`                   | a key from the server dialog registry                | the click opens that dialog                      |
-| `<show_dialog:'title':'body':'button'>…</show_dialog>` | MiniMessage text; `body` and `button` are optional   | opens a notice dialog built with `Dialog.create` |
-| `<item_hover:'reference':count>…</item_hover>`         | base64 item bytes or a material name, optional count | shows the item, including its data components    |
-| `<papi:'expression'>`                                  | a PlaceholderAPI expression                          | resolves the value at render time                |
-
-`PaperTags.compiler()` installs the Paper tags and the registry-backed dialog
-resolver. If you build the compiler yourself, use `PaperTags.withDefaults()` for
-the registry and then `compiler.dialogResolver(PaperDialogs::registryDialog)`; the
-Paper tags themselves are registered by `PaperTags.apply(registry, options)`.
-
-### Behavior and caveats
-
-- Registry dialogs are resolved **at compile time**. Recompile the tree if the
-  dialog registry changes after a datapack reload.
-- Inline dialog title, body and button are MiniMessage strings rendered at compile
-  time. Use a registry dialog when the contents must change per render.
-- `item_hover` accepts the output of
-  `Base64.getEncoder().encodeToString(item.serializeAsBytes())` for a full item
-  stack, or a material name such as `minecraft:diamond` with an optional count.
-  Material references keep the requested count; byte references keep the count
-  stored in the item.
-- `<papi>` is the only Paper tag with a per-render cost: it resolves the expression
-  for the rendering `Pointered` when it is a `Player`, and otherwise for the server
-  context. If PlaceholderAPI is not installed, the expression is rendered as-is, so
-  the message degrades to the raw placeholder text.
-- Invalid dialog keys and item references keep the literal fallback (the tag is
-  rendered as written), consistent with unknown tags.
-- `PaperTagOptions` exposes the dialog, item and PlaceholderAPI factories so the
-  tags can be compiled outside a running server or tested with fakes.
-
-All Paper tags except `<papi>` are resolved during compilation, so the cached
-render path is unchanged. `<papi>` renders with the same bounded cost as any other
-dynamic node.
-
-## Performance
-
-Benchmarks run with JMH (`-wi 10 -i 20 -f 3 -w 3s -r 3s`, GC profiler). The render path is the hot path;
-compilation happens once and is cached. Complete raw data is available in [`benchmark/results-intense.json`](benchmark/results-intense.json).
-
-### Simple, common message
-
-Input: `<green>[Server]</green> <white>Welcome!</white> <yellow>Type <bold>/help</bold> for commands.</yellow>`
-
-| Benchmark                        | ns/op  | Allocation | vs MiniMessage      |
-|----------------------------------|--------|------------|---------------------|
-| MiniMessage.deserialize          | 10 236 | 14.0 KB    | baseline            |
-| FastMiniMessage render (cached)  | 0.89   | 0 B        | **~11 500x faster** |
-| FastMiniMessage compile + render | 2 297  | 5.4 KB     | **~4.5x faster**    |
-
-### Complex, long input (Lorem ipsum + nested tags, gradients, hover, click, malformed input)
-
-Input: a long Lorem-ipsum string with deep nesting, all tags, emoji/surrogates and common
-malformed constructs, repeated 3x.
-
-| Benchmark                        | ns/op   | Allocation | vs MiniMessage   |
-|----------------------------------|---------|------------|------------------|
-| MiniMessage.deserialize          | 744 418 | 805.6 KB   | baseline         |
-| FastMiniMessage render (cached)  | 5 258   | 8.9 KB     | **~142x faster** |
-| FastMiniMessage compile + render | 169 276 | 277.3 KB   | **~4.4x faster** |
-
-Run the benchmarks yourself with the intense profile
-(`-wi 10 -i 20 -f 3 -w 3s -r 3s`):
+Run the benchmark suite locally:
 
 ```bash
-./gradlew :core:jmhIntense -PjmhArgs="MiniMessageRenderBenchmark"
-./gradlew :core:jmhIntense -PjmhArgs="MiniMessageTagsBenchmark"
+./gradlew :core:jmhIntense
+# Or run specific benchmark classes:
+./gradlew :core:jmhIntense -PjmhArgs="SimpleCommonBenchmark"
+./gradlew :core:jmhIntense -PjmhArgs="ComplexLongBenchmark"
+./gradlew :core:jmhIntense -PjmhArgs="AdventureTagsBenchmark"
 ```
 
-The full intense profile benchmark results are stored in [`benchmark/results-intense.json`](benchmark/results-intense.json), and the tag resolver bridge results are in [`benchmark/tag-resolver.json`](benchmark/tag-resolver.json).
+## Developer Guides
 
-`MiniMessageTagsBenchmark` covers the `TagResolver` bridge: fixed placeholders on the
-fast path, the same path with a `MiniMessage` instance configured, the experimental standalone bridge,
-and mixed messages where argument-based resolvers and `Modifying` tags are delegated to MiniMessage.
-`SimpleCommonBenchmark` and `ComplexLongBenchmark` also include TagResolver samples,
-including the fixed-argument and literal-closing edge cases.
+Detailed documentation on using and extending FastMiniMessage v2 is available in [`dev-guides/`](dev-guides/):
 
-The benchmark classes use the intense profile in their annotations, so running any of
-them through `jmh` or `jmhIntense` uses `-wi 10 -i 20 -f 3 -w 3s -r 3s`.
-
-## Equivalence
-
-FastMiniMessage is verified against MiniMessage on a matrix of ~70 diverse inputs
-(colors, decorations, click/hover/insert/shadow, gradients and nested gradients, rainbow,
-pride, keybinds, translatables, sprites, heads, newlines, emoji/surrogates, reset,
-placeholders, and common malformed input). Expression (per-code-point style) is compared,
-not tree shape, since FastMiniMessage deliberately flattens style wrappers.
-
-## Requirements
-
-- Core: Java 21 or higher and Kyori Adventure 5.2.0+ (provided by the consumer).
-- Paper module: Java 25+, Paper 26.2+, and optionally PlaceholderAPI 2.12+.
+1. [**Getting Started & Core Concepts**](dev-guides/01-getting-started.md) — Compiler setup, `PreComponentTree`, static folding, viewer context, and legacy `&` formatting.
+2. [**Runtime Tags, Placeholders & Modifiers**](dev-guides/02-runtime-tags-and-placeholders.md) — `TagResolver`, `Placeholder`, `RenderScope`, unclosed tags, and dynamic tag arguments.
+3. [**Custom Compile-Time Tags & AST Manipulation**](dev-guides/03-custom-compile-tags.md) — `TagSpec` rules (`StyleRule`, `LeafRule`, `TransformRule`), `TagArgs`, `ValueSource`, and tree inspection/mapping.
+4. [**Localization (`FastMiniMessageTranslationStore`)**](dev-guides/04-localization.md) — Precompiled translations, `GlobalTranslator`, indexed/named `Argument`s, and `.properties` bundles.
+5. [**Adventure `TagResolver` Bridge (`AdventureTags`)**](dev-guides/05-adventure-bridge.md) — Adapting standard MiniMessage `Placeholder` and `TagResolver` instances at render time.
+6. [**Paper Integration (`fastminimessage-paper`)**](dev-guides/06-paper-integration.md) — Dialogs (`<show_dialog>`), item hovers (`<item_hover>`), PlaceholderAPI (`<papi>`), and custom `PaperTagOptions`.
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
-### Tree ownership and runtime caching
-
-A `PreComponentTree` owns a copy of its input nodes. `visit(visitor)` edits an isolated
-copy and publishes the completed tree with fresh caches; if the visitor throws, the
-previous tree remains intact. Retaining a visited node does not allow later mutation
-of the published tree. Render calls use a single snapshot. Serialize concurrent edits
-externally to avoid overwriting another edit.
-
-Custom `PreComponent` implementations should leave `isScopeIndependent()` false
-unless their output ignores runtime resolvers, including those used by their children.
-Static, scope-independent nodes retain their caches even when unrelated placeholders
-are supplied. `deepCopy()` implementations must isolate mutable nodes and caches.
-
-Use `tree.inspect(snapshot -> ...)` for read-only traversal. Each immutable snapshot
-contains the node type, style, literal text (when applicable), child count and caching
-flags. Inspection preserves the published tree and its caches; it does not expose
-mutable nodes. Use `visit` only for edits.
-
-Component-valued tag arguments (translations, hover text/entity names, selector and
-NBT separators) preserve runtime components and literal placeholders. Scalar arguments
-such as click commands retain quotes, colons and backslashes after substitution.

@@ -1,18 +1,17 @@
 package io.github.neoramm.benchmarks;
 
-import io.github.neoramm.fastminimessage.MiniMessageCompiler;
-import io.github.neoramm.fastminimessage.ResolverRegistry;
-import io.github.neoramm.fastminimessage.api.ComponentResolver;
-import io.github.neoramm.fastminimessage.model.Arguments;
-import io.github.neoramm.fastminimessage.model.PreComponent;
-import io.github.neoramm.fastminimessage.model.PreComponentTree;
-import io.github.neoramm.fastminimessage.model.RenderScope;
+import io.github.neoramm.fastminimessage.v2.MiniMessageCompiler;
+import io.github.neoramm.fastminimessage.v2.PayloadInputs;
+import io.github.neoramm.fastminimessage.v2.ResolverRegistry;
+import io.github.neoramm.fastminimessage.v2.model.PreComponentTree;
+import io.github.neoramm.fastminimessage.v2.tag.TagSpec;
+import io.github.neoramm.fastminimessage.v2.template.ValueSource;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -24,25 +23,12 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
-import java.util.concurrent.TimeUnit;
-
-/**
- * Compares the cost of turning the same long MiniMessage document into an Adventure component,
- * with the reference parser and with the precompiled tree used by Trigger Engine.
- *
- * <p>Every tag registered in {@link ResolverRegistry#withDefaults()} appears at least once,
- * including font, transition, score, selector, nbt, sprite, head, and gradient phase variations.</p>
- *
- * <p>{@link #miniPreCompilerRenderDynamic()} adds a value that is only known at render time inside the
- * gradients and wrappers, so their output cannot be cached; it measures the path used by templates
- * whose placeholders change between renders.</p>
- */
 @State(Scope.Thread)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@Warmup(iterations = 3, time = 1)
-@Measurement(iterations = 5, time = 1)
-@Fork(1)
+@Warmup(iterations = 10, time = 1)
+@Measurement(iterations = 20, time = 1)
+@Fork(3)
 public class MiniMessageRenderBenchmark {
 
     private static final @NotNull Pointered NOBODY = new Pointered() {
@@ -93,10 +79,6 @@ public class MiniMessageRenderBenchmark {
             <newline/><br/>
             """.repeat(2);
 
-    /**
-     * Same kinds of tags as {@link #SAMPLE}, but with a value that is not known at compile time inside
-     * the gradients and wrappers, so their results cannot be cached across renders.
-     */
     private static final @NotNull String DYNAMIC_SAMPLE = """
             <gradient:#ff0000:#00ff00:#0000ff>gradient with colours and <dyn/></gradient>\
             <gradient:red:gold:blue:white>another gradient with named colours, <dyn/> and even more text</gradient>\
@@ -111,6 +93,7 @@ public class MiniMessageRenderBenchmark {
             <hover:show_text:'<gray>A gray hint with <bold>nested style</bold></gray>'>hover with <dyn/> inside</hover>\
             """.repeat(2);
 
+    private final @NotNull V1CoreBenchmarks.Render v1 = new V1CoreBenchmarks.Render(SAMPLE, DYNAMIC_SAMPLE);
     private @NotNull MiniMessage miniMessage;
     private @NotNull MiniMessageCompiler compiler;
     private @NotNull PreComponentTree tree;
@@ -122,43 +105,9 @@ public class MiniMessageRenderBenchmark {
         compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
         tree = compiler.compile(SAMPLE);
 
-        final ResolverRegistry dynamicRegistry = ResolverRegistry.withDefaults().register(new DynamicResolver());
+        final ResolverRegistry dynamicRegistry = ResolverRegistry.withDefaults().register(new TagSpec.LeafRule(Set.of("dyn"), (final var args, final var context) ->
+            new ValueSource.Computed<>((final var render) -> Component.text("dynamic"))));
         dynamicTree = new MiniMessageCompiler(dynamicRegistry).compile(DYNAMIC_SAMPLE);
-    }
-
-    private static final class DynamicResolver implements ComponentResolver {
-
-        @Override
-        public @NotNull PreComponent resolve(final @NotNull String name, final @NotNull Arguments args,
-            final PreComponent @NotNull [] children, final @Nullable Style inheritedStyle,
-            final @NotNull MiniMessageCompiler compiler) {
-            return new DynamicPreComponent();
-        }
-
-        @Override
-        public @NotNull String @NotNull [] names() {
-            return new String[]{"dyn"};
-        }
-
-        @Override
-        public boolean isSelfClosing() {
-            return true;
-        }
-    }
-
-    private static final class DynamicPreComponent extends PreComponent {
-
-        private static final @NotNull Component VALUE = Component.text("dynamic");
-
-        @Override
-        public @NotNull Component render(final @Nullable Pointered pointered, final @NotNull RenderScope scope) {
-            return VALUE;
-        }
-
-        @Override
-        public @NotNull PreComponent deepCopy() {
-            return new DynamicPreComponent();
-        }
     }
 
     @Benchmark
@@ -168,16 +117,31 @@ public class MiniMessageRenderBenchmark {
 
     @Benchmark
     public @NotNull Component miniPreCompilerRender() {
-        return tree.render(NOBODY);
+        return tree.render(PayloadInputs.viewer(NOBODY));
     }
 
     @Benchmark
     public @NotNull Component miniPreCompilerRenderDynamic() {
-        return dynamicTree.render(NOBODY);
+        return dynamicTree.render(PayloadInputs.viewer(NOBODY));
     }
 
     @Benchmark
     public @NotNull Component miniPreCompilerCompileAndRender() {
-        return compiler.compile(SAMPLE).render(NOBODY);
+        return compiler.compile(SAMPLE).render(PayloadInputs.viewer(NOBODY));
+    }
+
+    @Benchmark
+    public @NotNull Component v1PreCompilerRender() {
+        return v1.render();
+    }
+
+    @Benchmark
+    public @NotNull Component v1PreCompilerRenderDynamic() {
+        return v1.renderDynamic();
+    }
+
+    @Benchmark
+    public @NotNull Component v1PreCompilerCompileAndRender() {
+        return v1.compileAndRender();
     }
 }

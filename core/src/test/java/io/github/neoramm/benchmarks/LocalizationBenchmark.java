@@ -1,6 +1,6 @@
 package io.github.neoramm.benchmarks;
 
-import io.github.neoramm.fastminimessage.translation.FastMiniMessageTranslationStore;
+import io.github.neoramm.fastminimessage.v2.translation.FastMiniMessageTranslationStore;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TranslatableComponent;
@@ -24,10 +24,15 @@ import java.util.concurrent.TimeUnit;
 @State(Scope.Thread)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@Warmup(iterations = 3, time = 1)
-@Measurement(iterations = 3, time = 1)
-@Fork(1)
+@Warmup(iterations = 10, time = 1)
+@Measurement(iterations = 20, time = 1)
+@Fork(3)
 public class LocalizationBenchmark {
+
+    private static final @NotNull String TEMPLATE =
+        "<green>Welcome <arg:0>!</green> <gray>Today is <argument:1>.</gray>";
+
+    private final @NotNull V1CoreBenchmarks.Localization v1 = new V1CoreBenchmarks.Localization(TEMPLATE);
     private final @NotNull FastMiniMessageTranslationStore fast =
         FastMiniMessageTranslationStore.create(Key.key("benchmark:fast"));
     private final @NotNull MiniMessageTranslationStore reference =
@@ -37,13 +42,17 @@ public class LocalizationBenchmark {
 
     @Setup
     public void setup() {
-        final @NotNull String template = "<green>Welcome <arg:0>!</green> <gray>Today is <argument:1>.</gray>";
-        fast.register("welcome", Locale.US, template);
-        reference.register("welcome", Locale.US, template);
+        fast.register("welcome", Locale.US, TEMPLATE);
+        reference.register("welcome", Locale.US, TEMPLATE);
     }
 
     @Benchmark
-    public @Nullable Component precompiled() {
+    public @Nullable Component v1Precompiled() {
+        return v1.translate();
+    }
+
+    @Benchmark
+    public @Nullable Component v2Precompiled() {
         return fast.translate(input, Locale.US);
     }
 

@@ -4,13 +4,14 @@ plugins {
 }
 
 group = "io.github.neoramm"
-version = providers.gradleProperty("version").getOrElse("1.5.1")
+version = providers.gradleProperty("version").getOrElse("2.0.0-beta.1")
 
 base {
     archivesName.set("fastminimessage")
 }
 
 val kyoriVersion = providers.gradleProperty("adventureVersion").getOrElse("5.2.0")
+val v1Version = providers.gradleProperty("v1Version").getOrElse("1.7.0")
 
 repositories {
     mavenCentral()
@@ -19,11 +20,12 @@ repositories {
 dependencies {
     compileOnly("org.jetbrains:annotations:26.0.2")
 
-    api("net.kyori:adventure-api:$kyoriVersion")
+    compileOnly("net.kyori:adventure-api:$kyoriVersion")
     compileOnly("net.kyori:adventure-text-minimessage:$kyoriVersion")
     testImplementation("net.kyori:adventure-text-minimessage:$kyoriVersion")
     testImplementation("net.kyori:adventure-text-serializer-plain:$kyoriVersion")
     testImplementation(platform("org.junit:junit-bom:6.0.0"))
+    testImplementation("io.github.neoramm:fastminimessage:$v1Version")
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
@@ -62,7 +64,7 @@ tasks.register<JavaExec>("jmhIntense") {
     val extra = (project.findProperty("jmhArgs") as String?)?.split(" ")?.filter { it.isNotBlank() } ?: emptyList()
     args = listOf(
         "-prof", "gc", "-rf", "json", "-rff", results.get().asFile.absolutePath,
-        "-wi", "10", "-i", "20", "-f", "3", "-w", "3s", "-r", "3s"
+        "-wi", "5", "-i", "18", "-f", "2", "-w", "1s", "-r", "1s"
     ) + extra
 }
 

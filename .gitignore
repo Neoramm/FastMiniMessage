@@ -1,5 +1,8 @@
+!dev-guides
 !README.md
 *.md
+*.txt
+*.py
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar

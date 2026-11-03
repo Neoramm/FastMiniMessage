@@ -1,0 +1,16 @@
+package io.github.neoramm.fastminimessage.v2.model;
+
+import org.jetbrains.annotations.NotNull;
+
+import java.util.List;
+
+public record TagNode(
+    @NotNull String tagName,
+    @NotNull String rawArgs,
+    @NotNull String textContent,
+    @NotNull List<@NotNull TagNode> children,
+    boolean hasArguments,
+    boolean isClosingTag,
+    boolean isSelfClosing,
+    boolean explicitlyClosed
+) {}

@@ -1,10 +1,15 @@
 package io.github.neoramm.benchmarks;
 
-import io.github.neoramm.fastminimessage.MiniMessageCompiler;
-import io.github.neoramm.fastminimessage.ResolverRegistry;
-import io.github.neoramm.fastminimessage.compat.MiniMessageTags;
-import io.github.neoramm.fastminimessage.model.PreComponentTree;
-import io.github.neoramm.fastminimessage.model.RuntimeTagResolver;
+import io.github.neoramm.fastminimessage.v2.MiniMessageCompiler;
+import io.github.neoramm.fastminimessage.v2.PayloadInputs;
+import io.github.neoramm.fastminimessage.v2.ResolverRegistry;
+import io.github.neoramm.fastminimessage.v2.model.PayloadSchema;
+import io.github.neoramm.fastminimessage.v2.model.PreComponentTree;
+import io.github.neoramm.fastminimessage.v2.model.RenderScope;
+import io.github.neoramm.fastminimessage.v2.tag.TagSpec;
+import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import net.kyori.adventure.pointer.Pointered;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -25,13 +30,11 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
-import java.util.concurrent.TimeUnit;
-
 @State(Scope.Thread)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@Warmup(iterations = 10, time = 3)
-@Measurement(iterations = 20, time = 3)
+@Warmup(iterations = 10, time = 1)
+@Measurement(iterations = 20, time = 1)
 @Fork(3)
 public class ComplexLongBenchmark {
 
@@ -66,10 +69,6 @@ public class ComplexLongBenchmark {
             <bold>unclosed bold span continues
             """.repeat(3);
 
-    /**
-     * Complex input mixing native tags with fixed placeholders, an argument-based resolver,
-     * a {@code Modifying} tag, parsed/styling placeholders and the fixed-argument edge cases.
-     */
     private static final @NotNull String TAGS_SAMPLE = """
             <bold><name></bold> <rank>, \
             <upper:lorem> <tint>ipsum dolor sit amet</tint>, \
@@ -94,37 +93,66 @@ public class ComplexLongBenchmark {
         NAME, RANK, STYLED, PARSED, UPPER, TINT
     };
 
-    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_NAME =
-        io.github.neoramm.fastminimessage.model.TagResolver.inserting("name", "Hector");
-    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_RANK =
-        io.github.neoramm.fastminimessage.model.TagResolver.inserting("rank", "Admin");
-    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_UPPER =
-        io.github.neoramm.fastminimessage.model.TagResolver.dynamic("upper",
-            (args, ctx) -> Component.text(args.getFirst().toUpperCase()));
-    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver NATIVE_TINT =
-        io.github.neoramm.fastminimessage.model.TagResolver.modifying("tint",
-            (current, ctx) -> current.color(NamedTextColor.AQUA));
-    private static final @NotNull io.github.neoramm.fastminimessage.model.TagResolver @NotNull [] NATIVE_ALL = {
-        NATIVE_NAME, NATIVE_RANK, NATIVE_UPPER, NATIVE_TINT
-    };
+    private static final @NotNull PayloadSchema TAGS_SCHEMA;
+    private static final PayloadSchema.@NotNull Key<@NotNull String> NAME_KEY;
+    private static final PayloadSchema.@NotNull Key<@NotNull String> RANK_KEY;
 
+    static {
+        final @NotNull PayloadSchema.Builder tagsBuilder = PayloadSchema.builder();
+        NAME_KEY = tagsBuilder.key("name", String.class);
+        RANK_KEY = tagsBuilder.key("rank", String.class);
+        TAGS_SCHEMA = tagsBuilder.build();
+    }
+
+    private static @NotNull ResolverRegistry createTagsRegistry() {
+        return ResolverRegistry.withDefaults(TAGS_SCHEMA)
+            .registerPlaceholder("name", (final var scope) -> Component.text(scope.payload(NAME_KEY)))
+            .registerPlaceholder("rank", (final var scope) -> Component.text(scope.payload(RANK_KEY)))
+            .registerPlaceholder("parsed", (final var scope) -> Component.text("P", NamedTextColor.RED))
+            .registerModifier("styled", (final var content, final var scope) -> content.color(NamedTextColor.GREEN))
+            .register(new TagSpec.LeafRule(Set.of("upper"), (final var args, final var context) -> {
+                final var values = args.values();
+                return values.map((final var vals) -> Component.text(vals.string(0, "").toUpperCase(Locale.ROOT)));
+            }))
+            .registerModifier("tint", (final var content, final var scope) -> content.color(NamedTextColor.AQUA));
+    }
+
+    private static @NotNull ResolverRegistry createPlaceholdersRegistry() {
+        return ResolverRegistry.withDefaults(TAGS_SCHEMA)
+            .registerPlaceholder("name", (final var scope) -> Component.text(scope.payload(NAME_KEY)))
+            .registerPlaceholder("rank", (final var scope) -> Component.text(scope.payload(RANK_KEY)))
+            .registerPlaceholder("parsed", (final var scope) -> Component.text("P", NamedTextColor.RED))
+            .registerModifier("styled", (final var content, final var scope) -> content.color(NamedTextColor.GREEN));
+    }
+
+    private final @NotNull V1CoreBenchmarks.ComplexLong v1 =
+        new V1CoreBenchmarks.ComplexLong(SAMPLE, TAGS_SAMPLE);
+    private final @NotNull V1BridgeBenchmarks.Tags v1Tags =
+        new V1BridgeBenchmarks.Tags(TAGS_SAMPLE, PLACEHOLDERS, ALL);
     private @NotNull MiniMessage miniMessage;
     private @NotNull MiniMessageCompiler compiler;
+    private @NotNull MiniMessageCompiler tagsCompiler;
     private @NotNull PreComponentTree tree;
     private @NotNull PreComponentTree tagsTree;
-    private @NotNull RuntimeTagResolver placeholderTags;
-    private @NotNull RuntimeTagResolver tagsLiteralFallback;
-    private @NotNull RuntimeTagResolver tagsWithDelegation;
+    private @NotNull PreComponentTree placeholderTagsTree;
+    private @NotNull RenderScope tagsScope;
 
     @Setup
     public void setup() {
         miniMessage = MiniMessage.builder().strict(false).build();
         compiler = new MiniMessageCompiler(ResolverRegistry.withDefaults());
         tree = compiler.compile(SAMPLE);
-        tagsTree = compiler.compile(TAGS_SAMPLE);
-        placeholderTags = MiniMessageTags.of(PLACEHOLDERS);
-        tagsLiteralFallback = MiniMessageTags.of(ALL);
-        tagsWithDelegation = MiniMessageTags.of(miniMessage, ALL);
+
+        final @NotNull MiniMessageCompiler placeholdersCompiler = new MiniMessageCompiler(createPlaceholdersRegistry());
+        placeholderTagsTree = placeholdersCompiler.compile(TAGS_SAMPLE);
+
+        tagsCompiler = new MiniMessageCompiler(createTagsRegistry());
+        tagsTree = tagsCompiler.compile(TAGS_SAMPLE);
+        tagsScope = RenderScope.builder(TAGS_SCHEMA)
+            .viewer(NOBODY)
+            .payload(NAME_KEY, "Hector")
+            .payload(RANK_KEY, "Admin")
+            .build();
     }
 
     @Benchmark
@@ -134,12 +162,12 @@ public class ComplexLongBenchmark {
 
     @Benchmark
     public @NotNull Component miniPreCompilerRender() {
-        return tree.render(NOBODY);
+        return tree.render(PayloadInputs.viewer(NOBODY));
     }
 
     @Benchmark
     public @NotNull Component miniPreCompilerCompileAndRender() {
-        return compiler.compile(SAMPLE).render(NOBODY);
+        return compiler.compile(SAMPLE).render(PayloadInputs.viewer(NOBODY));
     }
 
     @Benchmark
@@ -149,31 +177,51 @@ public class ComplexLongBenchmark {
 
     @Benchmark
     public @NotNull Component fastRenderTagsPlaceholders() {
-        return tagsTree.render(NOBODY, placeholderTags);
+        return placeholderTagsTree.render(tagsScope);
     }
 
     @Benchmark
-    public @NotNull Component fastRenderTagsLiteralFallback() {
-        return tagsTree.render(NOBODY, tagsLiteralFallback);
-    }
-
-    @Benchmark
-    public @NotNull Component fastRenderTagsWithDelegation() {
-        return tagsTree.render(NOBODY, tagsWithDelegation);
-    }
-
-    @Benchmark
-    public @NotNull Component fastCompileAndRenderTagsWithDelegation() {
-        return compiler.compile(TAGS_SAMPLE).render(NOBODY, tagsWithDelegation);
+    public @NotNull Component fastRenderTagsAll() {
+        return tagsTree.render(tagsScope);
     }
 
     @Benchmark
     public @NotNull Component fastRenderNativeTags() {
-        return tagsTree.render(NOBODY, NATIVE_ALL);
+        return tagsTree.render(tagsScope);
     }
 
     @Benchmark
     public @NotNull Component fastCompileAndRenderNativeTags() {
-        return compiler.compile(TAGS_SAMPLE).render(NOBODY, NATIVE_ALL);
+        return tagsCompiler.compile(TAGS_SAMPLE).render(tagsScope);
+    }
+
+    @Benchmark
+    public @NotNull Component v1Render() {
+        return v1.render();
+    }
+
+    @Benchmark
+    public @NotNull Component v1CompileAndRender() {
+        return v1.compileAndRender();
+    }
+
+    @Benchmark
+    public @NotNull Component v1RenderTagsPlaceholders() {
+        return v1Tags.renderPlaceholders();
+    }
+
+    @Benchmark
+    public @NotNull Component v1RenderTagsLiteralFallback() {
+        return v1Tags.renderLiteralFallback();
+    }
+
+    @Benchmark
+    public @NotNull Component v1RenderNativeTags() {
+        return v1.renderNativeTags();
+    }
+
+    @Benchmark
+    public @NotNull Component v1CompileAndRenderNativeTags() {
+        return v1.compileAndRenderNativeTags();
     }
 }
